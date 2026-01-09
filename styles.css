@@ -11,3 +11,11 @@ input, select, button {
 .player-row {
   margin-bottom: 8px;
 }
+.note {
+  margin-top: 10px;
+  font-size: 14px;
+  color: #555;
+  background: #f9f9f9;
+  padding: 8px;
+  border-left: 4px solid #ffa500;
+}
