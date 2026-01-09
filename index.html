@@ -21,28 +21,21 @@
 <section id="playersSection"></section>
 
 <button id="generateBtn" onclick="generateMatches()" style="display:none;">
-  Generate Matches
+  Assign Teams
 </button>
 
 <p class="note">
   ⚠️ Note: Currently, only <strong>doubles matches (2 vs 2)</strong> are supported.
 </p>
 
-<section id="teamSection" style="display:none;">
-  <h2>Doubles Team Selection</h2>
+<!-- NEW: Team Assignment Section -->
+<section id="teamAssignmentSection" style="display:none;">
+  <h2>Assign Players to Teams</h2>
 
-  <h3>Side A</h3>
-  <select id="teamA1"></select>
-  <select id="teamA2"></select>
+  <div id="teamAssignmentContainer"></div>
 
-  <h3>Side B</h3>
-  <select id="teamB1"></select>
-  <select id="teamB2"></select>
-
-  <br><br>
-  <button onclick="validateTeams()">Validate Teams</button>
-
-  <p id="teamMessage"></p>
+  <button onclick="generateMatchesFromTeams()">Generate Matches</button>
+  <p id="teamAssignmentMessage"></p>
 </section>
 
 <script src="app.js"></script>
