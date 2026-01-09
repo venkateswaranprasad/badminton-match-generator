@@ -1,8 +1,22 @@
+/***********************
+ * GLOBAL STATE
+ ***********************/
 let players = [];
+let teamA = [];
+let teamB = [];
 
+/***********************
+ * STEP 1: CREATE PLAYER INPUTS
+ ***********************/
 function createPlayerInputs() {
-  const count = document.getElementById("playerCount").value;
+  const count = Number(document.getElementById("playerCount").value);
   const section = document.getElementById("playersSection");
+
+  if (!count || count < 1) {
+    alert("Please enter a valid number of players.");
+    return;
+  }
+
   section.innerHTML = "";
   players = [];
 
@@ -10,7 +24,7 @@ function createPlayerInputs() {
     section.innerHTML += `
       <div class="player-row">
         Player ${i + 1}:
-        <input type="text" placeholder="Name" id="name${i}">
+        <input type="text" id="name${i}" placeholder="Name">
         <select id="hand${i}">
           <option value="Right">Right</option>
           <option value="Left">Left</option>
@@ -19,72 +33,106 @@ function createPlayerInputs() {
     `;
   }
 
-  document.getElementById("generateBtn").style.display = "block";
+  document.getElementById("generateBtn").style.display = "inline-block";
 }
 
+/***********************
+ * STEP 2: COLLECT PLAYERS
+ * SHOW TEAM ASSIGNMENT
+ ***********************/
 function generateMatches() {
   players = [];
-  const count = document.getElementById("playerCount").value;
+  teamA = [];
+  teamB = [];
+
+  const count = Number(document.getElementById("playerCount").value);
 
   for (let i = 0; i < count; i++) {
-    players.push({
-      name: document.getElementById(`name${i}`).value,
-      hand: document.getElementById(`hand${i}`).value
-    });
+    const name = document.getElementById(`name${i}`).value.trim();
+    const hand = document.getElementById(`hand${i}`).value;
+
+    if (!name) {
+      alert(`Please enter a name for Player ${i + 1}`);
+      return;
+    }
+
+    players.push({ name, hand });
   }
 
-  alert("Players saved! Next step: Team selection (Phase 2)");
+  showTeamAssignment();
 }
 
-function generateMatches() {
-  players = [];
-  const count = document.getElementById("playerCount").value;
+/***********************
+ * STEP 3: TEAM ASSIGNMENT UI
+ ***********************/
+function showTeamAssignment() {
+  const container = document.getElementById("teamAssignmentContainer");
+  container.innerHTML = "";
 
-  for (let i = 0; i < count; i++) {
-    players.push({
-      name: document.getElementById(`name${i}`).value,
-      hand: document.getElementById(`hand${i}`).value
-    });
-  }
-
-  setupTeamSelection();
-}
-
-function setupTeamSelection() {
-  const selects = ["teamA1", "teamA2", "teamB1", "teamB2"];
-
-  selects.forEach(id => {
-    const select = document.getElementById(id);
-    select.innerHTML = "<option value=''>-- Select Player --</option>";
-
-    players.forEach(p => {
-      const opt = document.createElement("option");
-      opt.value = p.name;
-      opt.textContent = p.name;
-      select.appendChild(opt);
-    });
+  players.forEach((player, index) => {
+    container.innerHTML += `
+      <div>
+        <strong>${player.name}</strong> (${player.hand})
+        <label>
+          <input type="radio" name="team${index}" value="A"> Team A
+        </label>
+        <label>
+          <input type="radio" name="team${index}" value="B"> Team B
+        </label>
+      </div>
+    `;
   });
 
-  document.getElementById("teamSection").style.display = "block";
+  document.getElementById("teamAssignmentMessage").textContent = "";
+  document.getElementById("teamAssignmentSection").style.display = "block";
 }
 
-function validateTeams() {
-  const selected = [
-    teamA1.value, teamA2.value,
-    teamB1.value, teamB2.value
-  ];
+/***********************
+ * STEP 4: VALIDATE TEAMS
+ * CALCULATE MIN MATCHES
+ ***********************/
+function generateMatchesFromTeams() {
+  teamA = [];
+  teamB = [];
 
-  if (selected.includes("")) {
-    teamMessage.textContent = "Please select all 4 players.";
+  for (let i = 0; i < players.length; i++) {
+    const selected = document.querySelector(
+      `input[name="team${i}"]:checked`
+    );
+
+    if (!selected) {
+      setMessage("Please assign every player to a team.");
+      return;
+    }
+
+    if (selected.value === "A") {
+      teamA.push(players[i]);
+    } else {
+      teamB.push(players[i]);
+    }
+  }
+
+  if (teamA.length < 2 || teamB.length < 2) {
+    setMessage("Each team must have at least 2 players for doubles.");
     return;
   }
 
-  const uniquePlayers = new Set(selected);
-  if (uniquePlayers.size !== 4) {
-    teamMessage.textContent = "A player cannot be selected more than once.";
-    return;
-  }
+  const minMatches = Math.max(
+    Math.ceil(teamA.length / 2),
+    Math.ceil(teamB.length / 2)
+  );
 
-  teamMessage.textContent = "Teams are valid! Ready to calculate matches.";
+  setMessage(
+    `Teams confirmed ✔️ 
+     Team A: ${teamA.length} players, 
+     Team B: ${teamB.length} players.
+     Minimum matches possible: ${minMatches}`
+  );
 }
 
+/***********************
+ * HELPER: MESSAGE DISPLAY
+ ***********************/
+function setMessage(text) {
+  document.getElementById("teamAssignmentMessage").textContent = text;
+}
