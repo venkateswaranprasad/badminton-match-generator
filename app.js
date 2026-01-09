@@ -129,7 +129,17 @@ function generateMatchesFromTeams() {
      Minimum matches possible: ${minMatches}`
   );
 
-  function scheduleMatches(matchCount) {
+ scheduleMatches(minMatches);
+
+}
+
+/***********************
+ * HELPER: MESSAGE DISPLAY
+ ***********************/
+function setMessage(text) {
+  document.getElementById("teamAssignmentMessage").textContent = text;
+}
+ function scheduleMatches(matchCount) {
   const resultsDiv = document.getElementById("matchResults");
   resultsDiv.innerHTML = "";
 
@@ -157,13 +167,4 @@ function generateMatchesFromTeams() {
   }
 
   document.getElementById("matchSection").style.display = "block";
-}
-
-}
-
-/***********************
- * HELPER: MESSAGE DISPLAY
- ***********************/
-function setMessage(text) {
-  document.getElementById("teamAssignmentMessage").textContent = text;
 }
