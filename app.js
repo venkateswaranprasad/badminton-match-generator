@@ -131,15 +131,7 @@ function generateMatchesFromTeams() {
 
  scheduleMatches(minMatches);
 
-}
-
-/***********************
- * HELPER: MESSAGE DISPLAY
- ***********************/
-function setMessage(text) {
-  document.getElementById("teamAssignmentMessage").textContent = text;
-}
- function scheduleMatches(matchCount) {
+   function scheduleMatches(matchCount) {
   const resultsDiv = document.getElementById("matchResults");
   resultsDiv.innerHTML = "";
 
@@ -168,3 +160,13 @@ function setMessage(text) {
 
   document.getElementById("matchSection").style.display = "block";
 }
+  
+}
+
+/***********************
+ * HELPER: MESSAGE DISPLAY
+ ***********************/
+function setMessage(text) {
+  document.getElementById("teamAssignmentMessage").textContent = text;
+}
+
