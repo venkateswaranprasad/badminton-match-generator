@@ -19,3 +19,8 @@ input, select, button {
   padding: 8px;
   border-left: 4px solid #ffa500;
 }
+
+#teamMessage {
+  margin-top: 10px;
+  font-weight: bold;
+}
