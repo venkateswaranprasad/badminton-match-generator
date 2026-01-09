@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Badminton Match Generator</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<h1>🏸 Badminton Match Generator</h1>
+
+<section>
+  <label>Club / Group Name</label><br>
+  <input type="text" id="clubName"><br><br>
+
+  <label>Total Number of Players</label><br>
+  <input type="number" id="playerCount" min="1">
+  <button onclick="createPlayerInputs()">Next</button>
+</section>
+
+<section id="playersSection"></section>
+
+<button id="generateBtn" onclick="generateMatches()" style="display:none;">
+  Generate Matches
+</button>
+
+<script src="app.js"></script>
+</body>
+</html>
