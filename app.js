@@ -89,7 +89,7 @@ function showTeamAssignment() {
 
 /***********************
  * STEP 4: VALIDATE TEAMS
- * CALCULATE MIN MATCHES
+ * CALCULATE + SCHEDULE MATCHES
  ***********************/
 function generateMatchesFromTeams() {
   teamA = [];
@@ -123,15 +123,18 @@ function generateMatchesFromTeams() {
   );
 
   setMessage(
-    `Teams confirmed ✔️ 
-     Team A: ${teamA.length} players, 
-     Team B: ${teamB.length} players.
+    `Teams confirmed ✔️ Team A: ${teamA.length} players, 
+     Team B: ${teamB.length} players. 
      Minimum matches possible: ${minMatches}`
   );
 
- scheduleMatches(minMatches);
+  scheduleMatches(minMatches);
+}
 
-   function scheduleMatches(matchCount) {
+/***********************
+ * STEP 5: SIMPLE MATCH SCHEDULING
+ ***********************/
+function scheduleMatches(matchCount) {
   const resultsDiv = document.getElementById("matchResults");
   resultsDiv.innerHTML = "";
 
@@ -160,8 +163,6 @@ function generateMatchesFromTeams() {
 
   document.getElementById("matchSection").style.display = "block";
 }
-  
-}
 
 /***********************
  * HELPER: MESSAGE DISPLAY
@@ -169,4 +170,3 @@ function generateMatchesFromTeams() {
 function setMessage(text) {
   document.getElementById("teamAssignmentMessage").textContent = text;
 }
-
