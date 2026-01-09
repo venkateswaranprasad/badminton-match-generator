@@ -128,6 +128,37 @@ function generateMatchesFromTeams() {
      Team B: ${teamB.length} players.
      Minimum matches possible: ${minMatches}`
   );
+
+  function scheduleMatches(matchCount) {
+  const resultsDiv = document.getElementById("matchResults");
+  resultsDiv.innerHTML = "";
+
+  let aIndex = 0;
+  let bIndex = 0;
+
+  for (let i = 0; i < matchCount; i++) {
+    const a1 = teamA[aIndex % teamA.length];
+    const a2 = teamA[(aIndex + 1) % teamA.length];
+
+    const b1 = teamB[bIndex % teamB.length];
+    const b2 = teamB[(bIndex + 1) % teamB.length];
+
+    resultsDiv.innerHTML += `
+      <div>
+        <strong>Match ${i + 1}</strong><br>
+        Team A: ${a1.name} + ${a2.name}<br>
+        Team B: ${b1.name} + ${b2.name}
+      </div>
+      <hr>
+    `;
+
+    aIndex += 2;
+    bIndex += 2;
+  }
+
+  document.getElementById("matchSection").style.display = "block";
+}
+
 }
 
 /***********************
