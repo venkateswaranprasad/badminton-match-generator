@@ -1061,6 +1061,9 @@ function checkGroupHistory() {
   document.getElementById("newGroupSetup").style.display = "none";
 
   showGroupHistory(key);
+  // Default view = Tournament Stats
+  showTournamentStats();
+
 }
 
 function showGroupHistory(key) {
@@ -1122,6 +1125,111 @@ function showGroupHistory(key) {
   document.getElementById("historySection").style.display = "block";
 }
 
+function showTournamentStats() {
+  const tView = document.getElementById("tournamentStatsView");
+  const pView = document.getElementById("playerStatsView");
+
+  if (tView) tView.style.display = "block";
+  if (pView) pView.style.display = "none";
+}
+
+function showPlayerStats() {
+  const tView = document.getElementById("tournamentStatsView");
+  const pView = document.getElementById("playerStatsView");
+
+  if (tView) tView.style.display = "none";
+  if (pView) pView.style.display = "block";
+
+  // Render stats for current fetched group
+  renderPlayerStatsForGroup(groupKey);
+}
+
+function renderPlayerStatsForGroup(key) {
+  const groups = getGroupsStore();
+  const group = groups[key];
+
+  const container = document.getElementById("playerStatsTable");
+  if (!container) return;
+
+  if (!group) {
+    container.innerHTML = "<p>Group not found.</p>";
+    return;
+  }
+
+  const players = group.players || [];
+  const tournaments = group.tournaments || [];
+
+  if (players.length === 0) {
+    container.innerHTML = "<p>No players found in this group.</p>";
+    return;
+  }
+
+  if (tournaments.length === 0) {
+    container.innerHTML = "<p>No completed tournaments found for this group.</p>";
+    return;
+  }
+
+  // Stats map by player name (Policy A: use player names as stored in group profile)
+  const stats = {};
+  players.forEach(p => {
+    stats[p.name] = {
+      name: p.name,
+      played: 0,
+      won: 0
+    };
+  });
+
+  // Count from completed tournaments only
+  tournaments.forEach(t => {
+    const matchResults = t.matchResults || [];
+    matchResults.forEach(m => {
+      // Team A players
+      (m.teamA || []).forEach(playerName => {
+        if (stats[playerName]) stats[playerName].played++;
+      });
+
+      // Team B players
+      (m.teamB || []).forEach(playerName => {
+        if (stats[playerName]) stats[playerName].played++;
+      });
+
+      // Winners
+      const winners = m.winnerTeam === "A" ? (m.teamA || []) : (m.teamB || []);
+      winners.forEach(playerName => {
+        if (stats[playerName]) stats[playerName].won++;
+      });
+    });
+  });
+
+  // Build table
+  const rows = Object.values(stats).sort((a, b) => b.won - a.won);
+
+  let html = `
+    <table border="1" cellpadding="6">
+      <tr>
+        <th>Player Name</th>
+        <th>Matches Played</th>
+        <th>Matches Won</th>
+        <th>Win %</th>
+      </tr>
+  `;
+
+  rows.forEach(r => {
+    const winPct = r.played > 0 ? ((r.won / r.played) * 100).toFixed(1) : "0.0";
+    html += `
+      <tr>
+        <td>${r.name}</td>
+        <td>${r.played}</td>
+        <td>${r.won}</td>
+        <td>${winPct}%</td>
+      </tr>
+    `;
+  });
+
+  html += `</table>`;
+
+  container.innerHTML = html;
+}
 
 function closeHistorySummary() {
   const summaryDiv = document.getElementById("historySummary");
