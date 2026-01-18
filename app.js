@@ -321,10 +321,7 @@ function renderStatsFromSchedule(targetMatchesPerPlayer) {
  * LET'S PLAY UI + SAVE RESULTS
  ***********************/
 function letsPlay() {
-
-  alert("Let's Play clicked!");
-  console.log("Lets Play clicked", scheduledMatches);
-
+  
   if (!scheduledMatches || scheduledMatches.length === 0) {
     alert("Please generate matches first.");
     return;
@@ -358,7 +355,7 @@ function letsPlay() {
 
         <div class="play-row">
           <button onclick="saveMatchResult(${match.matchNo})">Save</button>
-          <span id="saveMsg${match.matchNo}"></span>
+          <span id="saveMsg${match.matchNo}" style="margin-left:10px;"></span>
         </div>
       </div>
     `;
@@ -368,11 +365,19 @@ function letsPlay() {
 }
 
 function saveMatchResult(matchNo) {
-  const scoreA = Number(document.getElementById(`scoreA${matchNo}`).value);
-  const scoreB = Number(document.getElementById(`scoreB${matchNo}`).value);
+  const scoreAEl = document.getElementById(`scoreA${matchNo}`);
+  const scoreBEl = document.getElementById(`scoreB${matchNo}`);
+
+  const scoreA = Number(scoreAEl.value);
+  const scoreB = Number(scoreBEl.value);
+
+  if (scoreAEl.value === "" || scoreBEl.value === "") {
+    alert("Please enter both scores.");
+    return;
+  }
 
   if (Number.isNaN(scoreA) || Number.isNaN(scoreB)) {
-    alert("Please enter both scores.");
+    alert("Please enter valid numeric scores.");
     return;
   }
 
@@ -382,13 +387,17 @@ function saveMatchResult(matchNo) {
   }
 
   const match = scheduledMatches.find(m => m.matchNo === matchNo);
-  if (!match) return;
+  if (!match) {
+    alert("Match not found.");
+    return;
+  }
 
   const winnerTeam = scoreA > scoreB ? "A" : "B";
 
-  // ✅ Display winner text instead of bolding
-  const msg = document.getElementById(`saveMsg${matchNo}`);
-  msg.textContent = `✅ Saved - Team ${winnerTeam} won`;
+  // ✅ Show message clearly
+  const msgEl = document.getElementById(`saveMsg${matchNo}`);
+  msgEl.textContent = `Saved ✅ Team ${winnerTeam} won`;
+  msgEl.style.fontWeight = "bold";
 
   const groupName =
     (document.getElementById("clubName").value || "").trim() || "Unknown Group";
@@ -405,8 +414,6 @@ function saveMatchResult(matchNo) {
   };
 
   storeMatchResult(resultObj);
-
-  document.getElementById(`saveMsg${matchNo}`).textContent = "✅ Saved";
 }
 
 function storeMatchResult(resultObj) {
