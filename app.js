@@ -529,11 +529,15 @@ function concludePlay() {
 
 function saveResults() {
   const groupName =
-    (document.getElementById("clubName").value || "").trim() || "Unknown Group";
+    (document.getElementById("clubName").value || "").trim();
+
+  if (!groupName) {
+    alert("Please enter a Group Name.");
+    return;
+  }
 
   const matchesPerPlayer = Number(document.getElementById("matchesPerPlayer").value);
 
-  // Load match results for this group
   const allResults = JSON.parse(localStorage.getItem("badmintonMatchResults") || "[]");
   const groupResults = allResults
     .filter(r => r.groupName === groupName)
@@ -544,29 +548,33 @@ function saveResults() {
     return;
   }
 
-  // ✅ Tournament record (single object)
   const tournamentRecord = {
-    groupName,
+    tournamentId: Date.now(),
+    savedAt: new Date().toISOString(),
     matchesPerPlayer,
     teamA: teamA.map(p => p.name),
     teamB: teamB.map(p => p.name),
-    scheduledMatches,     // match lineups
-    matchResults: groupResults, // scores + winners
-    savedAt: new Date().toISOString()
+    scheduledMatches,
+    matchResults: groupResults
   };
 
-  // ✅ Save full tournament into LocalStorage
-  const key = "badmintonTournaments";
-  const existing = JSON.parse(localStorage.getItem(key) || "[]");
-  existing.push(tournamentRecord);
-  localStorage.setItem(key, JSON.stringify(existing));
+  const key = "badmintonGroups";
+  const groups = JSON.parse(localStorage.getItem(key) || "{}");
 
-  // ✅ Disable buttons so no changes after save
-  disableAllButtons();
+  // Create group if not exists
+  if (!groups[groupName]) {
+    groups[groupName] = {
+      groupName,
+      tournaments: []
+    };
+  }
 
-  alert("Tournament results saved successfully ✅");
+  groups[groupName].tournaments.push(tournamentRecord);
 
-  // ✅ Go back to landing page (reset screen)
+  localStorage.setItem(key, JSON.stringify(groups));
+
+  alert("Results saved under group history ✅");
+
   resetAll();
   // Re-enable all buttons for new session
   document.querySelectorAll("button").forEach(btn => {
@@ -584,6 +592,77 @@ function disableAllButtons() {
 
   // Optional: visually indicate disabled
   // (CSS can also handle this)
+}
+
+function checkGroupHistory() {
+  const groupName =
+    (document.getElementById("clubName").value || "").trim();
+
+  if (!groupName) {
+    document.getElementById("historyMessage").textContent =
+      "Please enter a group name to fetch history.";
+    return;
+  }
+
+  const groups = JSON.parse(localStorage.getItem("badmintonGroups") || "{}");
+
+  if (!groups[groupName] || groups[groupName].tournaments.length === 0) {
+    document.getElementById("historyMessage").textContent =
+      "No history found for this group.";
+    document.getElementById("historySection").style.display = "none";
+    return;
+  }
+
+  document.getElementById("historyMessage").textContent =
+    `Found ${groups[groupName].tournaments.length} saved tournament(s).`;
+
+  showGroupHistory(groupName);
+}
+
+function showGroupHistory(groupName) {
+  const groups = JSON.parse(localStorage.getItem("badmintonGroups") || "{}");
+  const tournaments = groups[groupName].tournaments || [];
+
+  const historyList = document.getElementById("historyList");
+  historyList.innerHTML = "";
+
+  tournaments
+    .slice()
+    .reverse()
+    .forEach(t => {
+      historyList.innerHTML += `
+        <div style="border:1px solid #ddd; padding:10px; margin:10px 0;">
+          <strong>Date:</strong> ${new Date(t.savedAt).toLocaleString()}<br>
+          <strong>Matches per player:</strong> ${t.matchesPerPlayer}<br>
+          <strong>Team A:</strong> ${t.teamA.join(", ")}<br>
+          <strong>Team B:</strong> ${t.teamB.join(", ")}<br>
+          <button onclick="viewTournament('${groupName}', ${t.tournamentId})">
+            View Details
+          </button>
+        </div>
+      `;
+    });
+
+  document.getElementById("historySection").style.display = "block";
+}
+
+function viewTournament(groupName, tournamentId) {
+  const groups = JSON.parse(localStorage.getItem("badmintonGroups") || "{}");
+  const tournaments = groups[groupName].tournaments || [];
+  const t = tournaments.find(x => x.tournamentId === tournamentId);
+
+  if (!t) {
+    alert("Tournament not found.");
+    return;
+  }
+
+  let details = `Tournament: ${new Date(t.savedAt).toLocaleString()}\n\n`;
+
+  t.matchResults.forEach(r => {
+    details += `Match ${r.matchNo}: Team A (${r.teamA.join(" | ")}) ${r.scoreA} - ${r.scoreB} Team B (${r.teamB.join(" | ")}) | Winner: Team ${r.winnerTeam}\n`;
+  });
+
+  alert(details);
 }
 
 /***********************
