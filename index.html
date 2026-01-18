@@ -53,25 +53,27 @@
   <button class="danger" onclick="resetGroupHistory()">🧹 Reset Group History</button>
 
   <p id="historyMessage"></p>
-    <div id="historySection" style="display:none;">
-    
-      <!-- Tabs -->
-      <div id="groupStatsTabs" style="margin:10px 0;">
-        <button type="button" class="secondary" onclick="showTournamentStats()">📅 Tournament Stats</button>
-        <button type="button" class="secondary" onclick="showPlayerStats()">👤 Player Stats</button>
-      </div>
-    
-      <!-- Tournament Stats View -->
-      <div id="tournamentStatsView">
-        <div id="historyList"></div>
-      </div>
-    
-      <!-- Player Stats View -->
-      <div id="playerStatsView" style="display:none;">
-        <div id="playerStatsTable"></div>
-      </div>
-    
+
+  <div id="historySection" style="display:none;">
+
+    <!-- Tabs -->
+    <div id="groupStatsTabs" style="margin:10px 0;">
+      <button type="button" class="secondary" onclick="showTournamentStats()">📅 Tournament Stats</button>
+      <button type="button" class="secondary" onclick="showPlayerStats()">👤 Player Stats</button>
     </div>
+
+    <!-- Tournament Stats View -->
+    <div id="tournamentStatsView">
+      <div id="historyList"></div>
+    </div>
+
+    <!-- Player Stats View -->
+    <div id="playerStatsView" style="display:none;">
+      <div id="playerStatsTable"></div>
+    </div>
+
+  </div>
+
   <hr />
 
   <!-- IMPORTANT: used by app.js to hide/show new group player count -->
@@ -106,64 +108,64 @@
 <section id="step2" class="step-card" style="display:none;">
   <h2>Players & Teams</h2>
 
-  <div style="display:flex; gap:20px;">
+  <div class="two-col">
     <!-- LEFT : PLAYERS -->
-    <div style="width:50%;">
+    <div class="panel-card">
       <h3>Group Players</h3>
       <p><small>✔ Available Today is checked by default</small></p>
 
-      <!-- IMPORTANT: app.js expects this id -->
       <div id="playersPanel"></div>
 
-        <!-- Add Player Mode Panel -->
-        <div id="addPlayerPanel" style="display:none; margin-top:12px; padding:12px; border:1px solid #eee; border-radius:12px; background:white;">
-          <h4 style="margin-top:0;">Add New Player</h4>
-        
-          <label>Name</label><br />
-          <input type="text" id="newPlayerName" placeholder="Player Name" /><br /><br />
-        
-          <label>Dominant Hand</label><br />
-          <select id="newPlayerHand">
-            <option value="Right">Right</option>
-            <option value="Left">Left</option>
-          </select>
-          <br /><br />
-        
+      <div class="panel-actions">
+        <button type="button" id="addPlayerBtn" onclick="startAddPlayer()">➕ Add New Player</button>
+
+        <button type="button" id="managePlayersBtn" onclick="toggleManagePlayers()">
+          🛠️ Manage Players
+        </button>
+
+        <span id="manageModeText"></span>
+      </div>
+
+      <!-- Add Player Mode Panel -->
+      <div id="addPlayerPanel" class="add-player-panel" style="display:none;">
+        <h4 style="margin-top:0;">Add New Player</h4>
+
+        <label>Name</label><br />
+        <input type="text" id="newPlayerName" placeholder="Player Name" /><br /><br />
+
+        <label>Dominant Hand</label><br />
+        <select id="newPlayerHand">
+          <option value="Right">Right</option>
+          <option value="Left">Left</option>
+        </select>
+
+        <div class="panel-actions" style="margin-top:10px;">
           <button type="button" onclick="saveNewPlayer()">✅ Save Player</button>
           <button type="button" class="secondary" onclick="cancelAddPlayer()">❌ Cancel</button>
         </div>
-
-      <button type="button" id="addPlayerBtn" onclick="startAddPlayer()">➕ Add New Player</button>
-
-      <!-- IMPORTANT: app.js expects these ids -->
-      <button type="button" id="managePlayersBtn" onclick="toggleManagePlayers()">
-        🛠️ Manage Players
-      </button>
-      <span id="manageModeText" style="margin-left:10px;"></span>
+      </div>
     </div>
 
     <!-- RIGHT : TEAMS -->
-    <div style="width:50%;">
+    <div class="panel-card">
       <h3>Team Assignment (Today)</h3>
 
-      <!-- IMPORTANT: app.js expects these ids -->
-        <div class="sticky-counts">
-          <strong>Team A:</strong> <span id="teamACount">0</span>
-          &nbsp; | &nbsp;
-          <strong>Team B:</strong> <span id="teamBCount">0</span>
-        </div>
+      <div class="sticky-counts">
+        <strong>Team A:</strong> <span id="teamACount">0</span>
+        &nbsp; | &nbsp;
+        <strong>Team B:</strong> <span id="teamBCount">0</span>
+      </div>
 
-      <!-- IMPORTANT: app.js expects this id -->
       <div id="teamAssignmentPanel"></div>
+
+      <p id="teamAssignmentMessage"></p>
     </div>
   </div>
 
-  <p id="teamAssignmentMessage"></p>
-
-  <button onclick="goBack()">⬅️ Back</button>
-
-  <!-- IMPORTANT: function name updated -->
-  <button onclick="goNextFromPlayersTeams()">📅 Generate Schedule</button>
+  <div style="margin-top: 15px;">
+    <button onclick="goBack()">⬅️ Back</button>
+    <button onclick="goNextFromPlayersTeams()">📅 Generate Schedule</button>
+  </div>
 </section>
 
 <!-- ================= STEP 3 : SCHEDULE ================= -->
@@ -205,6 +207,6 @@
 </section>
 
 <!-- Bump version when needed to avoid cache -->
-<script src="app.js?v=9"></script>
+<script src="app.js?v=10"></script>
 </body>
 </html>
