@@ -100,7 +100,25 @@
       <!-- IMPORTANT: app.js expects this id -->
       <div id="playersPanel"></div>
 
-      <button type="button" onclick="addNewPlayerRow()">➕ Add New Player</button>
+        <!-- Add Player Mode Panel -->
+        <div id="addPlayerPanel" style="display:none; margin-top:12px; padding:12px; border:1px solid #eee; border-radius:12px; background:white;">
+          <h4 style="margin-top:0;">Add New Player</h4>
+        
+          <label>Name</label><br />
+          <input type="text" id="newPlayerName" placeholder="Player Name" /><br /><br />
+        
+          <label>Dominant Hand</label><br />
+          <select id="newPlayerHand">
+            <option value="Right">Right</option>
+            <option value="Left">Left</option>
+          </select>
+          <br /><br />
+        
+          <button type="button" onclick="saveNewPlayer()">✅ Save Player</button>
+          <button type="button" class="secondary" onclick="cancelAddPlayer()">❌ Cancel</button>
+        </div>
+
+      <button type="button" id="addPlayerBtn" onclick="startAddPlayer()">➕ Add New Player</button>
 
       <!-- IMPORTANT: app.js expects these ids -->
       <button type="button" id="managePlayersBtn" onclick="toggleManagePlayers()">
