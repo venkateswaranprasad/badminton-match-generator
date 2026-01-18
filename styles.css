@@ -28,3 +28,31 @@ input, select, button {
 #matchResults div {
   margin-bottom: 10px;
 }
+
+#playMatchesGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  margin-top: 15px;
+}
+
+.play-card {
+  border: 1px solid #ddd;
+  padding: 12px;
+  border-radius: 8px;
+}
+
+.play-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-top: 8px;
+}
+
+.score-input {
+  width: 60px;
+}
+
+.winner {
+  font-weight: bold;
+}
