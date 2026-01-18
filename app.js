@@ -323,6 +323,7 @@ function renderStatsFromSchedule(targetMatchesPerPlayer) {
 function letsPlay() {
 
   alert("Let's Play clicked!");
+  console.log("Lets Play clicked", scheduledMatches);
 
   if (!scheduledMatches || scheduledMatches.length === 0) {
     alert("Please generate matches first.");
