@@ -527,6 +527,64 @@ function concludePlay() {
   document.getElementById("finalSummarySection").scrollIntoView({ behavior: "smooth" });
 }
 
+function saveResults() {
+  const groupName =
+    (document.getElementById("clubName").value || "").trim() || "Unknown Group";
+
+  const matchesPerPlayer = Number(document.getElementById("matchesPerPlayer").value);
+
+  // Load match results for this group
+  const allResults = JSON.parse(localStorage.getItem("badmintonMatchResults") || "[]");
+  const groupResults = allResults
+    .filter(r => r.groupName === groupName)
+    .sort((a, b) => a.matchNo - b.matchNo);
+
+  if (groupResults.length === 0) {
+    alert("No saved match results found. Please save scores for matches first.");
+    return;
+  }
+
+  // ✅ Tournament record (single object)
+  const tournamentRecord = {
+    groupName,
+    matchesPerPlayer,
+    teamA: teamA.map(p => p.name),
+    teamB: teamB.map(p => p.name),
+    scheduledMatches,     // match lineups
+    matchResults: groupResults, // scores + winners
+    savedAt: new Date().toISOString()
+  };
+
+  // ✅ Save full tournament into LocalStorage
+  const key = "badmintonTournaments";
+  const existing = JSON.parse(localStorage.getItem(key) || "[]");
+  existing.push(tournamentRecord);
+  localStorage.setItem(key, JSON.stringify(existing));
+
+  // ✅ Disable buttons so no changes after save
+  disableAllButtons();
+
+  alert("Tournament results saved successfully ✅");
+
+  // ✅ Go back to landing page (reset screen)
+  resetAll();
+  // Re-enable all buttons for new session
+  document.querySelectorAll("button").forEach(btn => {
+  btn.disabled = false;
+});
+
+}
+
+function disableAllButtons() {
+  // Disable all buttons on the page
+  const buttons = document.querySelectorAll("button");
+  buttons.forEach(btn => {
+    btn.disabled = true;
+  });
+
+  // Optional: visually indicate disabled
+  // (CSS can also handle this)
+}
 
 /***********************
  * HELPER: MESSAGE DISPLAY
