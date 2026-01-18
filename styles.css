@@ -301,3 +301,15 @@ input[type="radio"] {
   margin-top: 18px;
 }
 
+.sticky-counts {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  background: white;
+  padding: 10px;
+  border-radius: 12px;
+  border: 1px solid #eee;
+  margin-bottom: 10px;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.04);
+}
+
