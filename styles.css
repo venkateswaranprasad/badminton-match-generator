@@ -352,3 +352,83 @@ input[type="radio"] {
   }
 }
 
+/* ===== Clean Layout Helpers (No inline styles) ===== */
+
+.two-col {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 18px;
+  align-items: start;
+}
+
+.panel-card {
+  border: 1px solid rgba(0,0,0,0.06);
+  border-radius: 14px;
+  padding: 12px;
+  background: rgba(255,255,255,0.7);
+}
+
+.panel-actions {
+  margin-top: 12px;
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+/* Manage mode warning text */
+#manageModeText {
+  font-weight: bold;
+  color: #e67e22;
+}
+
+/* Add player panel */
+.add-player-panel {
+  margin-top: 12px;
+  padding: 12px;
+  border: 1px solid #eee;
+  border-radius: 12px;
+  background: white;
+}
+
+/* Sticky counts (Team A / Team B) */
+.sticky-counts {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  background: white;
+  padding: 10px;
+  border-radius: 12px;
+  border: 1px solid #eee;
+  margin-bottom: 10px;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.04);
+}
+
+/* ===== Mobile Responsive ===== */
+@media (max-width: 850px) {
+  body {
+    padding: 14px;
+  }
+
+  .step-card {
+    padding: 16px;
+  }
+
+  .two-col {
+    grid-template-columns: 1fr;
+  }
+
+  button {
+    width: 100%;
+  }
+
+  table {
+    display: block;
+    overflow-x: auto;
+    white-space: nowrap;
+  }
+
+  .stepper-line {
+    width: 30px;
+  }
+}
