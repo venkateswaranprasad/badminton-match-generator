@@ -22,6 +22,12 @@
   <button onclick="createPlayerInputs()">Next</button>
 </section>
 
+<label>Seed (optional)</label><br>
+<input type="text" id="seedInput" placeholder="Ex: 123 or TestSeed"><br><br>
+
+<label>Randomness Level (0 to 100)</label><br>
+<input type="number" id="randomnessLevel" min="0" max="100" value="30"><br><br>
+
 <section id="playersSection"></section>
 
 <button id="generateBtn" onclick="generateMatches()" style="display:none;">
