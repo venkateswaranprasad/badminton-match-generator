@@ -1,9 +1,9 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <meta charset="UTF-8">
+  <meta charset="UTF-8" />
   <title>Badminton Match Generator</title>
-  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
 
@@ -17,8 +17,8 @@
 <section id="step1" class="step-card">
   <h2>Setup</h2>
 
-  <label>Group Name</label><br>
-  <input type="text" id="clubName"><br><br>
+  <label>Group Name</label><br />
+  <input type="text" id="clubName" /><br /><br />
 
   <button onclick="checkGroupHistory()">Fetch Group</button>
   <button onclick="resetGroupHistory()">Reset Group History</button>
@@ -28,26 +28,34 @@
     <div id="historyList"></div>
   </div>
 
-  <hr>
+  <hr />
 
-  <label>Total Players (new group only)</label><br>
-  <input type="number" id="playerCount" min="4"><br><br>
+  <!-- IMPORTANT: used by app.js to hide/show new group player count -->
+  <div id="newGroupSetup">
+    <label>Total Players (new group only)</label><br />
+    <input type="number" id="playerCount" min="4" /><br /><br />
+  </div>
 
-  <label>Matches per Player</label><br>
-  <input type="number" id="matchesPerPlayer" min="1" value="1"><br><br>
+  <label>Matches per Player</label><br />
+  <input type="number" id="matchesPerPlayer" min="1" value="1" /><br /><br />
 
   <details>
     <summary>Advanced Settings</summary>
-    <br>
-    <label>Seed</label><br>
-    <input type="text" id="seedInput"><br><br>
+    <br />
 
-    <label>Randomness (0–100)</label><br>
-    <input type="number" id="randomnessLevel" value="30" min="0" max="100">
+    <label>Seed</label><br />
+    <input type="text" id="seedInput" /><br /><br />
+
+    <label>Randomness (0–100)</label><br />
+    <input type="number" id="randomnessLevel" value="30" min="0" max="100" />
   </details>
 
-  <br>
+  <br />
   <button onclick="goNextFromSetup()">Next</button>
+
+  <p class="note">
+    ⚠️ Note: Currently, only <strong>doubles matches (2 vs 2)</strong> are supported.
+  </p>
 </section>
 
 <!-- ================= STEP 2 : PLAYERS + TEAMS ================= -->
@@ -60,24 +68,40 @@
       <h3>Group Players</h3>
       <p><small>✔ Available Today is checked by default</small></p>
 
-      <div id="playersList"></div>
+      <!-- IMPORTANT: app.js expects this id -->
+      <div id="playersPanel"></div>
 
-      <button onclick="addNewPlayer()">Add Player</button>
-      <button onclick="toggleManagePlayers()">Manage Players</button>
+      <button type="button" onclick="addNewPlayerRow()">Add New Player</button>
+
+      <!-- IMPORTANT: app.js expects these ids -->
+      <button type="button" id="managePlayersBtn" onclick="toggleManagePlayers()">
+        Manage Players
+      </button>
+      <span id="manageModeText" style="margin-left:10px;"></span>
     </div>
 
     <!-- RIGHT : TEAMS -->
     <div style="width:50%;">
       <h3>Team Assignment (Today)</h3>
-      <div id="teamCounts"></div>
-      <div id="teamAssignmentContainer"></div>
+
+      <!-- IMPORTANT: app.js expects these ids -->
+      <div style="margin-bottom:10px;">
+        <strong>Team A:</strong> <span id="teamACount">0</span>
+        &nbsp; | &nbsp;
+        <strong>Team B:</strong> <span id="teamBCount">0</span>
+      </div>
+
+      <!-- IMPORTANT: app.js expects this id -->
+      <div id="teamAssignmentPanel"></div>
     </div>
   </div>
 
   <p id="teamAssignmentMessage"></p>
 
   <button onclick="goBack()">Back</button>
-  <button onclick="goNextFromTeams()">Generate Schedule</button>
+
+  <!-- IMPORTANT: function name updated -->
+  <button onclick="goNextFromPlayersTeams()">Generate Schedule</button>
 </section>
 
 <!-- ================= STEP 3 : SCHEDULE ================= -->
@@ -114,9 +138,11 @@
     <div id="playerOfTournament"></div>
 
     <button onclick="saveResults()">Save Results</button>
+    <button onclick="resetAll()">Start New Tournament</button>
   </section>
 </section>
 
-<script src="app.js?v=5"></script>
+<!-- Bump version when needed to avoid cache -->
+<script src="app.js?v=6"></script>
 </body>
 </html>
