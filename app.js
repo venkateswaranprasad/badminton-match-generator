@@ -124,18 +124,21 @@ function generateMatchesFromTeams() {
     return;
   }
 
-  const minMatches = Math.max(
-    Math.ceil(teamA.length / 2),
-    Math.ceil(teamB.length / 2)
-  );
+const matchesPerPlayer = Number(document.getElementById("matchesPerPlayer").value);
+const totalPlayers = teamA.length + teamB.length;
 
-  setMessage(
-    `Teams confirmed ✔️ Team A: ${teamA.length} players, 
-     Team B: ${teamB.length} players. 
-     Minimum matches possible: ${minMatches}`
-  );
+// Total matches needed so each player gets matchesPerPlayer matches
+const totalMatchesNeeded = Math.ceil((totalPlayers * matchesPerPlayer) / 4);
 
-  scheduleMatches(minMatches);
+setMessage(
+  `Teams confirmed ✔️ Team A: ${teamA.length} players, 
+   Team B: ${teamB.length} players. 
+   Matches per player: ${matchesPerPlayer}. 
+   Total matches scheduled: ${totalMatchesNeeded}`
+);
+
+scheduleMatches(totalMatchesNeeded);
+
 }
 
 /***********************
