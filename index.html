@@ -53,10 +53,25 @@
   <button class="danger" onclick="resetGroupHistory()">🧹 Reset Group History</button>
 
   <p id="historyMessage"></p>
-  <div id="historySection" style="display:none;">
-    <div id="historyList"></div>
-  </div>
-
+    <div id="historySection" style="display:none;">
+    
+      <!-- Tabs -->
+      <div id="groupStatsTabs" style="margin:10px 0;">
+        <button type="button" class="secondary" onclick="showTournamentStats()">📅 Tournament Stats</button>
+        <button type="button" class="secondary" onclick="showPlayerStats()">👤 Player Stats</button>
+      </div>
+    
+      <!-- Tournament Stats View -->
+      <div id="tournamentStatsView">
+        <div id="historyList"></div>
+      </div>
+    
+      <!-- Player Stats View -->
+      <div id="playerStatsView" style="display:none;">
+        <div id="playerStatsTable"></div>
+      </div>
+    
+    </div>
   <hr />
 
   <!-- IMPORTANT: used by app.js to hide/show new group player count -->
