@@ -313,3 +313,42 @@ input[type="radio"] {
   box-shadow: 0 4px 10px rgba(0,0,0,0.04);
 }
 
+/* ===== Mobile Responsive Layout ===== */
+@media (max-width: 800px) {
+  body {
+    padding: 15px;
+  }
+
+  .step-card {
+    padding: 16px;
+  }
+
+  /* Step 2: stack columns on mobile */
+  #step2 div[style*="display:flex"] {
+    flex-direction: column;
+  }
+
+  #step2 div[style*="width:50%"] {
+    width: 100% !important;
+  }
+
+  /* Buttons full width for easier tapping */
+  button {
+    width: 100%;
+    margin-right: 0;
+  }
+
+  /* Stepper lines shorter */
+  .stepper-line {
+    width: 30px;
+  }
+}
+
+@media (max-width: 800px) {
+  table {
+    display: block;
+    overflow-x: auto;
+    white-space: nowrap;
+  }
+}
+
