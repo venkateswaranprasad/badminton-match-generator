@@ -1,10 +1,31 @@
 /***********************
+ * WIZARD STATE
+ ***********************/
+let currentStep = 1;
+
+function showStep(stepNo) {
+  currentStep = stepNo;
+
+  for (let i = 1; i <= 5; i++) {
+    const el = document.getElementById(`step${i}`);
+    if (el) el.style.display = i === stepNo ? "block" : "none";
+  }
+
+  const stepText = document.getElementById("currentStepText");
+  if (stepText) stepText.textContent = stepNo;
+}
+
+function goBack() {
+  if (currentStep > 1) showStep(currentStep - 1);
+}
+
+/***********************
  * GLOBAL STATE
  ***********************/
 let players = [];
 let teamA = [];
 let teamB = [];
-let scheduledMatches = []; // ✅ store matches so "Let's Play" can use them
+let scheduledMatches = []; // Used by Step 4 & Step 5
 
 /***********************
  * SEED + RANDOM HELPERS
@@ -48,6 +69,21 @@ function shuffleArray(arr, rngFn) {
 }
 
 /***********************
+ * STEP 1 -> STEP 2
+ * Setup "Next"
+ ***********************/
+function goNextFromSetup() {
+  // This will validate and build the player rows
+  createPlayerInputs();
+
+  // If rows were created, move to Step 2
+  const playerCount = Number(document.getElementById("playerCount").value);
+  if (playerCount && playerCount > 0) {
+    showStep(2);
+  }
+}
+
+/***********************
  * STEP 1: CREATE PLAYER INPUTS
  ***********************/
 function createPlayerInputs() {
@@ -81,12 +117,21 @@ function createPlayerInputs() {
       </div>
     `;
   }
+}
 
-  document.getElementById("generateBtn").style.display = "inline-block";
+/***********************
+ * STEP 2 -> STEP 3
+ * Players "Next"
+ ***********************/
+function goNextFromPlayers() {
+  // Collect players and build Team assignment UI
+  if (!generateMatches()) return;
+  showStep(3);
 }
 
 /***********************
  * STEP 2: COLLECT PLAYERS
+ * Returns true/false for wizard flow
  ***********************/
 function generateMatches() {
   players = [];
@@ -96,19 +141,29 @@ function generateMatches() {
 
   const count = Number(document.getElementById("playerCount").value);
 
+  const seenNames = new Set();
+
   for (let i = 0; i < count; i++) {
     const name = document.getElementById(`name${i}`).value.trim();
     const hand = document.getElementById(`hand${i}`).value;
 
     if (!name) {
       alert(`Please enter a name for Player ${i + 1}`);
-      return;
+      return false;
     }
+
+    const lower = name.toLowerCase();
+    if (seenNames.has(lower)) {
+      alert(`Duplicate player name found: "${name}". Please use unique names.`);
+      return false;
+    }
+    seenNames.add(lower);
 
     players.push({ name, hand });
   }
 
   showTeamAssignment();
+  return true;
 }
 
 /***********************
@@ -133,11 +188,20 @@ function showTeamAssignment() {
   });
 
   document.getElementById("teamAssignmentMessage").textContent = "";
-  document.getElementById("teamAssignmentSection").style.display = "block";
+}
+
+/***********************
+ * STEP 3 -> STEP 4
+ * Teams "Generate Schedule"
+ ***********************/
+function goNextFromTeams() {
+  if (!generateMatchesFromTeams()) return;
+  showStep(4);
 }
 
 /***********************
  * STEP 4: VALIDATE TEAMS & SCHEDULE
+ * Return true/false for wizard flow
  ***********************/
 function generateMatchesFromTeams() {
   teamA = [];
@@ -147,14 +211,14 @@ function generateMatchesFromTeams() {
   const matchesPerPlayer = Number(document.getElementById("matchesPerPlayer").value);
   if (!matchesPerPlayer || matchesPerPlayer < 1) {
     setMessage("Please enter a valid matches per player value.");
-    return;
+    return false;
   }
 
   for (let i = 0; i < players.length; i++) {
     const selected = document.querySelector(`input[name="team${i}"]:checked`);
     if (!selected) {
       setMessage("Please assign every player to a team.");
-      return;
+      return false;
     }
     if (selected.value === "A") teamA.push(players[i]);
     else teamB.push(players[i]);
@@ -162,7 +226,7 @@ function generateMatchesFromTeams() {
 
   if (teamA.length < 2 || teamB.length < 2) {
     setMessage("Each team must have at least 2 players for doubles.");
-    return;
+    return false;
   }
 
   const totalPlayers = teamA.length + teamB.length;
@@ -174,9 +238,39 @@ Matches per player: ${matchesPerPlayer}. Total matches scheduled: ${totalMatches
   );
 
   scheduleMatchesSmart(totalMatchesNeeded, matchesPerPlayer);
+  return true;
+}
 
-  // Hide play section until "Let's Play" clicked
-  document.getElementById("playSection").style.display = "none";
+/***********************
+ * RE-GENERATE (Step 4)
+ ***********************/
+function regenerateMatches() {
+  const matchesPerPlayer = Number(document.getElementById("matchesPerPlayer").value);
+
+  if (!matchesPerPlayer || matchesPerPlayer < 1) {
+    setMessage("Please enter a valid matches per player value.");
+    return;
+  }
+
+  if (teamA.length < 2 || teamB.length < 2) {
+    setMessage("Please ensure both Team A and Team B have at least 2 players.");
+    return;
+  }
+
+  const totalPlayers = teamA.length + teamB.length;
+  const totalMatchesNeeded = Math.ceil((totalPlayers * matchesPerPlayer) / 4);
+
+  scheduleMatchesSmart(totalMatchesNeeded, matchesPerPlayer);
+  setMessage("Schedule re-generated ✔️");
+}
+
+/***********************
+ * STEP 4 -> STEP 5
+ * Schedule "Let's Play"
+ ***********************/
+function goNextFromSchedule() {
+  letsPlay();
+  showStep(5);
 }
 
 /***********************
@@ -273,6 +367,7 @@ function scheduleMatchesSmart(matchCount, targetMatchesPerPlayer) {
     });
   }
 
+  // Render schedule on Step 4
   scheduledMatches.forEach(match => {
     resultsDiv.innerHTML += `
       <div>
@@ -283,49 +378,20 @@ function scheduleMatchesSmart(matchCount, targetMatchesPerPlayer) {
       <hr>
     `;
   });
-
-  document.getElementById("matchSection").style.display = "block";
-  renderStatsFromSchedule(targetMatchesPerPlayer);
 }
 
 /***********************
- * STATS FROM CURRENT SCHEDULE
- ***********************/
-function renderStatsFromSchedule(targetMatchesPerPlayer) {
-  const playedCount = {};
-  [...teamA, ...teamB].forEach(p => (playedCount[p.name] = 0));
-
-  scheduledMatches.forEach(m => {
-    m.teamA.forEach(n => (playedCount[n] = (playedCount[n] || 0) + 1));
-    m.teamB.forEach(n => (playedCount[n] = (playedCount[n] || 0) + 1));
-  });
-
-  const statsDiv = document.getElementById("playerStats");
-  statsDiv.innerHTML = "";
-
-  const allPlayers = [...teamA, ...teamB].map(p => p.name).sort();
-
-  allPlayers.forEach(name => {
-    const played = playedCount[name] || 0;
-    statsDiv.innerHTML += `
-      <div>
-        <strong>${name}</strong> — Matches Played: ${played} / Target: ${targetMatchesPerPlayer}
-      </div>
-    `;
-  });
-
-  document.getElementById("statsSection").style.display = "block";
-}
-
-/***********************
- * LET'S PLAY UI + SAVE RESULTS
+ * STEP 5: LET'S PLAY UI
  ***********************/
 function letsPlay() {
-  
   if (!scheduledMatches || scheduledMatches.length === 0) {
     alert("Please generate matches first.");
     return;
   }
+
+  // Hide final summary until concluded
+  const finalSection = document.getElementById("finalSummarySection");
+  if (finalSection) finalSection.style.display = "none";
 
   const grid = document.getElementById("playMatchesGrid");
   grid.innerHTML = "";
@@ -335,7 +401,7 @@ function letsPlay() {
       <div class="play-card" id="playCard${match.matchNo}">
         <div><strong>Match ${match.matchNo}</strong></div>
 
-        <div id="teamABox${match.matchNo}">
+        <div>
           Team A: <span>${match.teamA[0]} + ${match.teamA[1]}</span>
         </div>
 
@@ -344,7 +410,7 @@ function letsPlay() {
           <input class="score-input" type="number" id="scoreA${match.matchNo}" min="0">
         </div>
 
-        <div id="teamBBox${match.matchNo}">
+        <div>
           Team B: <span>${match.teamB[0]} + ${match.teamB[1]}</span>
         </div>
 
@@ -360,10 +426,11 @@ function letsPlay() {
       </div>
     `;
   });
-
-  document.getElementById("playSection").style.display = "block";
 }
 
+/***********************
+ * SAVE MATCH RESULT
+ ***********************/
 function saveMatchResult(matchNo) {
   const scoreAEl = document.getElementById(`scoreA${matchNo}`);
   const scoreBEl = document.getElementById(`scoreB${matchNo}`);
@@ -394,7 +461,6 @@ function saveMatchResult(matchNo) {
 
   const winnerTeam = scoreA > scoreB ? "A" : "B";
 
-  // ✅ Show message clearly
   const msgEl = document.getElementById(`saveMsg${matchNo}`);
   msgEl.textContent = `Saved ✅ Team ${winnerTeam} won`;
   msgEl.style.fontWeight = "bold";
@@ -420,7 +486,7 @@ function storeMatchResult(resultObj) {
   const key = "badmintonMatchResults";
   const existing = JSON.parse(localStorage.getItem(key) || "[]");
 
-  // Remove old record for same group + matchNo if exists
+  // Replace old record for same group + matchNo if exists
   const filtered = existing.filter(
     r => !(r.groupName === resultObj.groupName && r.matchNo === resultObj.matchNo)
   );
@@ -429,6 +495,9 @@ function storeMatchResult(resultObj) {
   localStorage.setItem(key, JSON.stringify(filtered));
 }
 
+/***********************
+ * CONCLUDE PLAY
+ ***********************/
 function concludePlay() {
   const groupName =
     (document.getElementById("clubName").value || "").trim() || "Unknown Group";
@@ -439,11 +508,10 @@ function concludePlay() {
     .sort((a, b) => a.matchNo - b.matchNo);
 
   if (groupResults.length === 0) {
-    alert("No match results found to conclude.");
+    alert("No match results found to conclude. Please save scores first.");
     return;
   }
 
-  // ✅ Count match wins for teams
   let teamAWins = 0;
   let teamBWins = 0;
 
@@ -452,16 +520,13 @@ function concludePlay() {
     else teamBWins++;
   });
 
-  // Tournament winner
   let tournamentWinner = "Draw";
   if (teamAWins > teamBWins) tournamentWinner = "Team A";
   else if (teamBWins > teamAWins) tournamentWinner = "Team B";
 
-  // ✅ Section 1: Final Result Header
   document.getElementById("finalHeader").innerHTML =
     `<strong>${tournamentWinner} won</strong>`;
 
-  // ✅ Section 1 Table: Overall summary
   document.getElementById("overallSummary").innerHTML = `
     <table border="1" cellpadding="6">
       <tr>
@@ -479,7 +544,6 @@ function concludePlay() {
     </table>
   `;
 
-  // ✅ Section 2: Match-wise summary
   let matchTable = `
     <table border="1" cellpadding="6">
       <tr>
@@ -504,9 +568,7 @@ function concludePlay() {
   matchTable += `</table>`;
   document.getElementById("matchSummary").innerHTML = matchTable;
 
-  // ✅ Section 3: Player of the Tournament (most match wins)
   const playerWinCount = {};
-
   groupResults.forEach(r => {
     const winningPlayers = r.winnerTeam === "A" ? r.teamA : r.teamB;
     winningPlayers.forEach(p => {
@@ -520,17 +582,14 @@ function concludePlay() {
   document.getElementById("playerOfTournament").innerHTML =
     `Player of the tournament: <strong>${topPlayers.join(", ")}</strong> (${maxWins} wins)`;
 
-  // Show final section
   document.getElementById("finalSummarySection").style.display = "block";
-
-  // Scroll to final result
-  document.getElementById("finalSummarySection").scrollIntoView({ behavior: "smooth" });
 }
 
+/***********************
+ * SAVE RESULTS BY GROUP
+ ***********************/
 function saveResults() {
-  const groupName =
-    (document.getElementById("clubName").value || "").trim();
-
+  const groupName = (document.getElementById("clubName").value || "").trim();
   if (!groupName) {
     alert("Please enter a Group Name.");
     return;
@@ -544,7 +603,7 @@ function saveResults() {
     .sort((a, b) => a.matchNo - b.matchNo);
 
   if (groupResults.length === 0) {
-    alert("No saved match results found. Please save scores for matches first.");
+    alert("No saved match results found. Please save scores first.");
     return;
   }
 
@@ -561,7 +620,6 @@ function saveResults() {
   const key = "badmintonGroups";
   const groups = JSON.parse(localStorage.getItem(key) || "{}");
 
-  // Create group if not exists
   if (!groups[groupName]) {
     groups[groupName] = {
       groupName,
@@ -570,36 +628,23 @@ function saveResults() {
   }
 
   groups[groupName].tournaments.push(tournamentRecord);
-
   localStorage.setItem(key, JSON.stringify(groups));
 
-  alert("Results saved under group history ✅");
+disableAllButtons();
 
-  // ✅ Disable buttons so no changes after save
-  disableAllButtons();
-
+setTimeout(() => {
+  alert("Results saved ✅ Starting a new tournament.");
   resetAll();
-  // Re-enable all buttons for new session
-  document.querySelectorAll("button").forEach(btn => {
-  btn.disabled = false;
-});
+  enableAllButtons();
+}, 300);
 
 }
 
-function disableAllButtons() {
-  // Disable all buttons on the page
-  const buttons = document.querySelectorAll("button");
-  buttons.forEach(btn => {
-    btn.disabled = true;
-  });
-
-  // Optional: visually indicate disabled
-  // (CSS can also handle this)
-}
-
+/***********************
+ * FETCH GROUP HISTORY (Step 1)
+ ***********************/
 function checkGroupHistory() {
-  const groupName =
-    (document.getElementById("clubName").value || "").trim();
+  const groupName = (document.getElementById("clubName").value || "").trim();
 
   if (!groupName) {
     document.getElementById("historyMessage").textContent =
@@ -629,44 +674,68 @@ function showGroupHistory(groupName) {
   const historyList = document.getElementById("historyList");
   historyList.innerHTML = "";
 
-  tournaments
-    .slice()
-    .reverse()
-    .forEach(t => {
-      historyList.innerHTML += `
-        <div style="border:1px solid #ddd; padding:10px; margin:10px 0;">
-          <strong>Date:</strong> ${new Date(t.savedAt).toLocaleString()}<br>
-          <strong>Matches per player:</strong> ${t.matchesPerPlayer}<br>
-          <strong>Team A:</strong> ${t.teamA.join(", ")}<br>
-          <strong>Team B:</strong> ${t.teamB.join(", ")}<br>
-          <button onclick="viewTournament('${groupName}', ${t.tournamentId})">
-            View Details
-          </button>
-        </div>
-      `;
-    });
+  tournaments.slice().reverse().forEach(t => {
+    historyList.innerHTML += `
+      <div style="border:1px solid #ddd; padding:10px; margin:10px 0;">
+        <strong>Date:</strong> ${new Date(t.savedAt).toLocaleString()}<br>
+        <strong>Matches per player:</strong> ${t.matchesPerPlayer}<br>
+        <strong>Team A:</strong> ${t.teamA.join(", ")}<br>
+        <strong>Team B:</strong> ${t.teamB.join(", ")}<br>
+      </div>
+    `;
+  });
 
   document.getElementById("historySection").style.display = "block";
 }
 
-function viewTournament(groupName, tournamentId) {
-  const groups = JSON.parse(localStorage.getItem("badmintonGroups") || "{}");
-  const tournaments = groups[groupName].tournaments || [];
-  const t = tournaments.find(x => x.tournamentId === tournamentId);
+/***********************
+ * RESET
+ ***********************/
+function resetAll() {
+  document.getElementById("clubName").value = "";
+  document.getElementById("playerCount").value = "";
+  document.getElementById("matchesPerPlayer").value = 1;
 
-  if (!t) {
-    alert("Tournament not found.");
-    return;
-  }
+  const seedInputEl = document.getElementById("seedInput");
+  if (seedInputEl) seedInputEl.value = "";
 
-  let details = `Tournament: ${new Date(t.savedAt).toLocaleString()}\n\n`;
+  const randomEl = document.getElementById("randomnessLevel");
+  if (randomEl) randomEl.value = 30;
 
-  t.matchResults.forEach(r => {
-    details += `Match ${r.matchNo}: Team A (${r.teamA.join(" | ")}) ${r.scoreA} - ${r.scoreB} Team B (${r.teamB.join(" | ")}) | Winner: Team ${r.winnerTeam}\n`;
-  });
+  document.getElementById("playersSection").innerHTML = "";
+  document.getElementById("teamAssignmentContainer").innerHTML = "";
+  document.getElementById("teamAssignmentMessage").textContent = "";
 
-  alert(details);
+  document.getElementById("matchResults").innerHTML = "";
+  document.getElementById("playMatchesGrid").innerHTML = "";
+
+  document.getElementById("historyMessage").textContent = "";
+  document.getElementById("historySection").style.display = "none";
+  document.getElementById("historyList").innerHTML = "";
+
+  const finalSection = document.getElementById("finalSummarySection");
+  if (finalSection) finalSection.style.display = "none";
+
+  players = [];
+  teamA = [];
+  teamB = [];
+  scheduledMatches = [];
+
+  showStep(1);
 }
+
+function disableAllButtons() {
+  document.querySelectorAll("button").forEach(btn => {
+    btn.disabled = true;
+  });
+}
+
+function enableAllButtons() {
+  document.querySelectorAll("button").forEach(btn => {
+    btn.disabled = false;
+  });
+}
+
 
 /***********************
  * HELPER: MESSAGE DISPLAY
@@ -674,3 +743,10 @@ function viewTournament(groupName, tournamentId) {
 function setMessage(text) {
   document.getElementById("teamAssignmentMessage").textContent = text;
 }
+
+/***********************
+ * INITIAL LOAD
+ ***********************/
+window.addEventListener("load", () => {
+  showStep(1);
+});
