@@ -2,6 +2,7 @@
  * WIZARD STATE
  ***********************/
 let currentStep = 1;
+let addPlayerMode = false;
 
 function showStep(stepNo) {
   currentStep = stepNo;
@@ -190,6 +191,7 @@ function goNextFromSetup() {
   manageMode = false;
 
   renderPlayersPanel();
+  updateManageButtonState();
   renderTeamAssignmentPanel();
   showStep(2);
 }
@@ -263,9 +265,11 @@ function escapeHtml(text) {
 }
 
 function toggleManagePlayers() {
+  if (addPlayerMode) return; // ✅ block manage while adding
+
   manageMode = !manageMode;
   const btn = document.getElementById("managePlayersBtn");
-  btn.textContent = manageMode ? "Done" : "Manage Players";
+  btn.textContent = manageMode ? "Done" : "🛠️ Manage Players";
   renderPlayersPanel();
 }
 
@@ -345,8 +349,120 @@ function saveEditedPlayer(playerId) {
   groupPlayers = group.players;
 
   renderPlayersPanel();
+  updateManageButtonState();
   renderTeamAssignmentPanel();
 }
+
+function startAddPlayer() {
+  addPlayerMode = true;
+
+  // Show add player panel
+  const panel = document.getElementById("addPlayerPanel");
+  if (panel) panel.style.display = "block";
+
+  // Clear inputs
+  const n = document.getElementById("newPlayerName");
+  const h = document.getElementById("newPlayerHand");
+  if (n) n.value = "";
+  if (h) h.value = "Right";
+
+  // Disable Manage button while adding
+  const manageBtn = document.getElementById("managePlayersBtn");
+  if (manageBtn) manageBtn.disabled = true;
+
+  // Disable Add button while adding (avoid duplicates)
+  const addBtn = document.getElementById("addPlayerBtn");
+  if (addBtn) addBtn.disabled = true;
+
+  // Turn off manage mode if it was on
+  manageMode = false;
+  const btn = document.getElementById("managePlayersBtn");
+  if (btn) btn.textContent = "🛠️ Manage Players";
+
+  renderPlayersPanel();
+  updateManageButtonState();
+}
+
+function cancelAddPlayer() {
+  addPlayerMode = false;
+
+  // Hide add player panel
+  const panel = document.getElementById("addPlayerPanel");
+  if (panel) panel.style.display = "none";
+
+  // Enable buttons back
+  const manageBtn = document.getElementById("managePlayersBtn");
+  if (manageBtn) manageBtn.disabled = false;
+
+  const addBtn = document.getElementById("addPlayerBtn");
+  if (addBtn) addBtn.disabled = false;
+  updateManageButtonState();
+}
+
+function saveNewPlayer() {
+  const name = (document.getElementById("newPlayerName").value || "").trim();
+  const hand = document.getElementById("newPlayerHand").value;
+
+  if (!name) {
+    alert("Please enter player name.");
+    return;
+  }
+
+  // Duplicate check within group
+  const lowerName = name.toLowerCase();
+  const exists = groupPlayers.some(p => (p.name || "").toLowerCase() === lowerName);
+  if (exists) {
+    alert("Player already exists in this group.");
+    return;
+  }
+
+  const groups = getGroupsStore();
+  const group = groups[groupKey];
+
+  if (!group) {
+    alert("Group not found. Please go back and enter group name again.");
+    return;
+  }
+
+  const newPlayer = {
+    id: uid(),
+    name,
+    hand
+  };
+
+  group.players.push(newPlayer);
+  groups[groupKey] = group;
+  setGroupsStore(groups);
+
+  // Sync local state
+  groupPlayers = group.players;
+  availableTodayMap[newPlayer.id] = true; // default checked
+  teamMap[newPlayer.id] = "";
+
+  // Exit add player mode
+  cancelAddPlayer();
+
+  // Refresh UI panels
+  renderPlayersPanel();
+  updateManageButtonState();
+  renderTeamAssignmentPanel();
+}
+
+function updateManageButtonState() {
+  const manageBtn = document.getElementById("managePlayersBtn");
+  if (!manageBtn) return;
+
+  // Disable when adding player
+  if (addPlayerMode) {
+    manageBtn.disabled = true;
+    return;
+  }
+
+  // Disable manage if any player is unnamed (new group setup unfinished)
+  const hasUnnamed = groupPlayers.some(p => !p.name);
+  manageBtn.disabled = hasUnnamed;
+}
+
 
 /***********************
  * Delete player (Policy A)
