@@ -12,6 +12,13 @@ function createPlayerInputs() {
   const count = Number(document.getElementById("playerCount").value);
   const section = document.getElementById("playersSection");
 
+  const matchesPerPlayer = Number(document.getElementById("matchesPerPlayer").value);
+
+  if (!matchesPerPlayer || matchesPerPlayer < 1) {
+    alert("Please enter a valid matches per player value.");
+    return;
+  }
+
   if (!count || count < 1) {
     alert("Please enter a valid number of players.");
     return;
