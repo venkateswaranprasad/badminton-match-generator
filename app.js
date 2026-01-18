@@ -955,19 +955,175 @@ function showGroupHistory(key) {
   const historyList = document.getElementById("historyList");
   historyList.innerHTML = "";
 
+  if (tournaments.length === 0) {
+    historyList.innerHTML = "<p>No tournament history found.</p>";
+    document.getElementById("historySection").style.display = "block";
+    return;
+  }
+
+  let tableHtml = `
+    <table border="1" cellpadding="6">
+      <tr>
+        <th>Date</th>
+        <th>Team A Wins</th>
+        <th>Team B Wins</th>
+        <th>Action</th>
+      </tr>
+  `;
+
   tournaments.forEach(t => {
-    historyList.innerHTML += `
-      <div style="border:1px solid #ddd; padding:10px; margin:10px 0; border-radius:8px;">
-        <strong>Date:</strong> ${new Date(t.savedAt).toLocaleString()}<br>
-        <strong>Available Players:</strong> ${t.availablePlayers.join(", ")}<br>
-        <strong>Team A:</strong> ${t.teamA.join(", ")}<br>
-        <strong>Team B:</strong> ${t.teamB.join(", ")}<br>
-      </div>
+    const matchResults = t.matchResults || [];
+
+    let teamAWins = 0;
+    let teamBWins = 0;
+
+    matchResults.forEach(r => {
+      if (r.winnerTeam === "A") teamAWins++;
+      else if (r.winnerTeam === "B") teamBWins++;
+    });
+
+    tableHtml += `
+      <tr>
+        <td>${new Date(t.savedAt).toLocaleString()}</td>
+        <td>${teamAWins}</td>
+        <td>${teamBWins}</td>
+        <td>
+          <button onclick="viewTournamentSummary('${key}', ${t.tournamentId})">
+            📊 View Summary
+          </button>
+        </td>
+      </tr>
     `;
   });
 
+  tableHtml += `</table>`;
+
+  // ✅ Dedicated summary area (prevents stacking)
+  tableHtml += `
+    <div id="historySummary" style="margin-top:15px;"></div>
+  `;
+
+  historyList.innerHTML = tableHtml;
   document.getElementById("historySection").style.display = "block";
 }
+
+
+function closeHistorySummary() {
+  const summaryDiv = document.getElementById("historySummary");
+  if (summaryDiv) summaryDiv.innerHTML = "";
+}
+
+function viewTournamentSummary(groupKey, tournamentId) {
+  const groups = getGroupsStore();
+  const group = groups[groupKey];
+
+  if (!group) {
+    alert("Group not found.");
+    return;
+  }
+
+  const t = (group.tournaments || []).find(x => x.tournamentId === tournamentId);
+  if (!t) {
+    alert("Tournament not found.");
+    return;
+  }
+
+  const results = (t.matchResults || []).slice().sort((a, b) => a.matchNo - b.matchNo);
+  if (results.length === 0) {
+    alert("No match results saved for this tournament.");
+    return;
+  }
+
+  // ✅ Count wins by team
+  let teamAWins = 0;
+  let teamBWins = 0;
+
+  results.forEach(r => {
+    if (r.winnerTeam === "A") teamAWins++;
+    else if (r.winnerTeam === "B") teamBWins++;
+  });
+
+  let tournamentWinner = "Draw";
+  if (teamAWins > teamBWins) tournamentWinner = "Team A";
+  else if (teamBWins > teamAWins) tournamentWinner = "Team B";
+
+  // ✅ Player of tournament
+  const playerWinCount = {};
+  results.forEach(r => {
+    const winners = r.winnerTeam === "A" ? r.teamA : r.teamB;
+    winners.forEach(p => {
+      playerWinCount[p] = (playerWinCount[p] || 0) + 1;
+    });
+  });
+
+  const maxWins = Math.max(...Object.values(playerWinCount));
+  const topPlayers = Object.keys(playerWinCount).filter(p => playerWinCount[p] === maxWins);
+
+  // ✅ Match table
+  let matchTable = `
+    <table border="1" cellpadding="6" style="margin-top:10px;">
+      <tr>
+        <th>Team A Players</th>
+        <th>Team A Points</th>
+        <th>Team B Players</th>
+        <th>Team B Points</th>
+      </tr>
+  `;
+
+  results.forEach(r => {
+    matchTable += `
+      <tr>
+        <td>${r.teamA.join(" | ")}</td>
+        <td>${r.scoreA}</td>
+        <td>${r.teamB.join(" | ")}</td>
+        <td>${r.scoreB}</td>
+      </tr>
+    `;
+  });
+
+  matchTable += `</table>`;
+
+  // ✅ Render into dedicated summary section (NO stacking)
+  const summaryDiv = document.getElementById("historySummary");
+  if (!summaryDiv) return;
+
+  summaryDiv.innerHTML = `
+    <div style="padding:12px; border:1px solid #ddd; border-radius:12px; background:white;">
+      <div style="display:flex; justify-content:space-between; align-items:center; gap:10px;">
+        <h3 style="margin:0;">Final Result</h3>
+        <button class="secondary" onclick="closeHistorySummary()">❌ Close</button>
+      </div>
+
+      <p style="margin-top:10px;"><strong>${tournamentWinner} won</strong></p>
+
+      <h4>Overall Summary</h4>
+      <table border="1" cellpadding="6">
+        <tr>
+          <th>Team A</th>
+          <th>No. of matches won</th>
+          <th>Team B</th>
+          <th>No. of matches won</th>
+        </tr>
+        <tr>
+          <td>Team A</td>
+          <td>${teamAWins}</td>
+          <td>Team B</td>
+          <td>${teamBWins}</td>
+        </tr>
+      </table>
+
+      <h4 style="margin-top:15px;">Match Summary</h4>
+      ${matchTable}
+
+      <h4 style="margin-top:15px;">Player of the Tournament</h4>
+      <p><strong>${topPlayers.join(", ")}</strong> (${maxWins} wins)</p>
+    </div>
+  `;
+
+  // ✅ scroll to summary smoothly
+  summaryDiv.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
 
 function resetGroupHistory() {
   const nameInput = document.getElementById("clubName").value;
