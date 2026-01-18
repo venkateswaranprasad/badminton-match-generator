@@ -575,6 +575,9 @@ function saveResults() {
 
   alert("Results saved under group history ✅");
 
+  // ✅ Disable buttons so no changes after save
+  disableAllButtons();
+
   resetAll();
   // Re-enable all buttons for new session
   document.querySelectorAll("button").forEach(btn => {
