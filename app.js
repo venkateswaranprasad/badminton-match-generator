@@ -14,13 +14,13 @@ function createPlayerInputs() {
 
   const matchesPerPlayer = Number(document.getElementById("matchesPerPlayer").value);
 
-  if (!matchesPerPlayer || matchesPerPlayer < 1) {
-    alert("Please enter a valid matches per player value.");
+  if (!count || count < 1) {
+    alert("Please enter a valid number of players.");
     return;
   }
 
-  if (!count || count < 1) {
-    alert("Please enter a valid number of players.");
+  if (!matchesPerPlayer || matchesPerPlayer < 1) {
+    alert("Please enter a valid matches per player value.");
     return;
   }
 
@@ -96,16 +96,23 @@ function showTeamAssignment() {
 
 /***********************
  * STEP 4: VALIDATE TEAMS
- * CALCULATE + SCHEDULE MATCHES
+ * CALCULATE TOTAL MATCHES NEEDED
+ * SCHEDULE MATCHES
  ***********************/
 function generateMatchesFromTeams() {
   teamA = [];
   teamB = [];
 
+  // Get matches per player
+  const matchesPerPlayer = Number(document.getElementById("matchesPerPlayer").value);
+  if (!matchesPerPlayer || matchesPerPlayer < 1) {
+    setMessage("Please enter a valid matches per player value.");
+    return;
+  }
+
+  // Build Team A and Team B arrays
   for (let i = 0; i < players.length; i++) {
-    const selected = document.querySelector(
-      `input[name="team${i}"]:checked`
-    );
+    const selected = document.querySelector(`input[name="team${i}"]:checked`);
 
     if (!selected) {
       setMessage("Please assign every player to a team.");
@@ -119,30 +126,28 @@ function generateMatchesFromTeams() {
     }
   }
 
+  // Basic validation for doubles
   if (teamA.length < 2 || teamB.length < 2) {
     setMessage("Each team must have at least 2 players for doubles.");
     return;
   }
 
-const matchesPerPlayer = Number(document.getElementById("matchesPerPlayer").value);
-const totalPlayers = teamA.length + teamB.length;
+  const totalPlayers = teamA.length + teamB.length;
 
-// Total matches needed so each player gets matchesPerPlayer matches
-const totalMatchesNeeded = Math.ceil((totalPlayers * matchesPerPlayer) / 4);
+  // ✅ Total matches required for desired matches-per-player
+  // Each doubles match uses 4 players total (2 from A + 2 from B)
+  const totalMatchesNeeded = Math.ceil((totalPlayers * matchesPerPlayer) / 4);
 
-setMessage(
-  `Teams confirmed ✔️ Team A: ${teamA.length} players, 
-   Team B: ${teamB.length} players. 
-   Matches per player: ${matchesPerPlayer}. 
-   Total matches scheduled: ${totalMatchesNeeded}`
-);
+  setMessage(
+    `Teams confirmed ✔️ Team A: ${teamA.length} players, Team B: ${teamB.length} players.
+     Matches per player: ${matchesPerPlayer}. Total matches scheduled: ${totalMatchesNeeded}`
+  );
 
-scheduleMatches(totalMatchesNeeded);
-
+  scheduleMatches(totalMatchesNeeded);
 }
 
 /***********************
- * STEP 5: SIMPLE MATCH SCHEDULING
+ * STEP 5: SIMPLE MATCH SCHEDULING (ROTATION)
  ***********************/
 function scheduleMatches(matchCount) {
   const resultsDiv = document.getElementById("matchResults");
