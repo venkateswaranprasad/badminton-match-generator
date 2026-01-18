@@ -13,6 +13,14 @@
   <label>Club / Group Name</label><br>
   <input type="text" id="clubName"><br><br>
 
+  <button type="button" onclick="checkGroupHistory()">Fetch Play History</button>
+  <p id="historyMessage"></p>
+
+  <div id="historySection" style="display:none;">
+      <h3>Play History</h3>
+    <div id="historyList"></div>
+  </div>
+
   <label>Total Number of Players</label><br>
   <input type="number" id="playerCount" min="1"><br><br>
 
@@ -82,6 +90,9 @@
 
   <h3>Player of the Tournament</h3>
   <div id="playerOfTournament"></div>
+
+  <button id="saveResultsBtn" onclick="saveResults()">Save Results</button>
+
 </section>
 
 </body>
