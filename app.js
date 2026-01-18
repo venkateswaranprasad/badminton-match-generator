@@ -384,20 +384,14 @@ function saveMatchResult(matchNo) {
   const match = scheduledMatches.find(m => m.matchNo === matchNo);
   if (!match) return;
 
-  const winner = scoreA > scoreB ? "A" : "B";
+  const winnerTeam = scoreA > scoreB ? "A" : "B";
 
-  // Bold winning team
-  const teamABox = document.getElementById(`teamABox${matchNo}`);
-  const teamBBox = document.getElementById(`teamBBox${matchNo}`);
+  // ✅ Display winner text instead of bolding
+  const msg = document.getElementById(`saveMsg${matchNo}`);
+  msg.textContent = `✅ Saved - Team ${winnerTeam} won`;
 
-  teamABox.classList.remove("winner");
-  teamBBox.classList.remove("winner");
-
-  if (winner === "A") teamABox.classList.add("winner");
-  else teamBBox.classList.add("winner");
-
-  // Save result to LocalStorage
-  const groupName = (document.getElementById("clubName").value || "").trim() || "Unknown Group";
+  const groupName =
+    (document.getElementById("clubName").value || "").trim() || "Unknown Group";
 
   const resultObj = {
     groupName,
@@ -406,7 +400,7 @@ function saveMatchResult(matchNo) {
     teamB: match.teamB,
     scoreA,
     scoreB,
-    winnerTeam: winner,
+    winnerTeam,
     savedAt: new Date().toISOString()
   };
 
@@ -418,9 +412,114 @@ function saveMatchResult(matchNo) {
 function storeMatchResult(resultObj) {
   const key = "badmintonMatchResults";
   const existing = JSON.parse(localStorage.getItem(key) || "[]");
-  existing.push(resultObj);
-  localStorage.setItem(key, JSON.stringify(existing));
+
+  // Remove old record for same group + matchNo if exists
+  const filtered = existing.filter(
+    r => !(r.groupName === resultObj.groupName && r.matchNo === resultObj.matchNo)
+  );
+
+  filtered.push(resultObj);
+  localStorage.setItem(key, JSON.stringify(filtered));
 }
+
+function concludePlay() {
+  const groupName =
+    (document.getElementById("clubName").value || "").trim() || "Unknown Group";
+
+  const allResults = JSON.parse(localStorage.getItem("badmintonMatchResults") || "[]");
+  const groupResults = allResults
+    .filter(r => r.groupName === groupName)
+    .sort((a, b) => a.matchNo - b.matchNo);
+
+  if (groupResults.length === 0) {
+    alert("No match results found to conclude.");
+    return;
+  }
+
+  // ✅ Count match wins for teams
+  let teamAWins = 0;
+  let teamBWins = 0;
+
+  groupResults.forEach(r => {
+    if (r.winnerTeam === "A") teamAWins++;
+    else teamBWins++;
+  });
+
+  // Tournament winner
+  let tournamentWinner = "Draw";
+  if (teamAWins > teamBWins) tournamentWinner = "Team A";
+  else if (teamBWins > teamAWins) tournamentWinner = "Team B";
+
+  // ✅ Section 1: Final Result Header
+  document.getElementById("finalHeader").innerHTML =
+    `<strong>${tournamentWinner} won</strong>`;
+
+  // ✅ Section 1 Table: Overall summary
+  document.getElementById("overallSummary").innerHTML = `
+    <table border="1" cellpadding="6">
+      <tr>
+        <th>Team A</th>
+        <th>No. of matches won</th>
+        <th>Team B</th>
+        <th>No. of matches won</th>
+      </tr>
+      <tr>
+        <td>Team A</td>
+        <td>${teamAWins}</td>
+        <td>Team B</td>
+        <td>${teamBWins}</td>
+      </tr>
+    </table>
+  `;
+
+  // ✅ Section 2: Match-wise summary
+  let matchTable = `
+    <table border="1" cellpadding="6">
+      <tr>
+        <th>Team A Players</th>
+        <th>Team A Points</th>
+        <th>Team B Players</th>
+        <th>Team B Points</th>
+      </tr>
+  `;
+
+  groupResults.forEach(r => {
+    matchTable += `
+      <tr>
+        <td>${r.teamA.join(" | ")}</td>
+        <td>${r.scoreA}</td>
+        <td>${r.teamB.join(" | ")}</td>
+        <td>${r.scoreB}</td>
+      </tr>
+    `;
+  });
+
+  matchTable += `</table>`;
+  document.getElementById("matchSummary").innerHTML = matchTable;
+
+  // ✅ Section 3: Player of the Tournament (most match wins)
+  const playerWinCount = {};
+
+  groupResults.forEach(r => {
+    const winningPlayers = r.winnerTeam === "A" ? r.teamA : r.teamB;
+    winningPlayers.forEach(p => {
+      playerWinCount[p] = (playerWinCount[p] || 0) + 1;
+    });
+  });
+
+  const maxWins = Math.max(...Object.values(playerWinCount));
+  const topPlayers = Object.keys(playerWinCount).filter(p => playerWinCount[p] === maxWins);
+
+  document.getElementById("playerOfTournament").innerHTML =
+    `Player of the tournament: <strong>${topPlayers.join(", ")}</strong> (${maxWins} wins)`;
+
+  // Show final section
+  document.getElementById("finalSummarySection").style.display = "block";
+
+  // Scroll to final result
+  document.getElementById("finalSummarySection").scrollIntoView({ behavior: "smooth" });
+}
+
 
 /***********************
  * HELPER: MESSAGE DISPLAY
