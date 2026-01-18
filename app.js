@@ -321,6 +321,9 @@ function renderStatsFromSchedule(targetMatchesPerPlayer) {
  * LET'S PLAY UI + SAVE RESULTS
  ***********************/
 function letsPlay() {
+
+  alert("Let's Play clicked!");
+
   if (!scheduledMatches || scheduledMatches.length === 0) {
     alert("Please generate matches first.");
     return;
