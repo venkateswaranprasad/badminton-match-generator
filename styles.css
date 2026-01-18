@@ -228,3 +228,76 @@ td, th {
   padding: 10px;
   border: 1px solid #ddd;
 }
+
+/* ===== Step 2 Modern Layout Improvements ===== */
+
+/* Make the Step 2 left and right panels look like cards */
+#step2 > div {
+  align-items: flex-start;
+}
+
+/* Smooth panel appearance */
+#playersPanel,
+#teamAssignmentPanel {
+  background: rgba(255, 255, 255, 0.6);
+  border: 1px solid rgba(0,0,0,0.06);
+  border-radius: 14px;
+  padding: 10px;
+}
+
+/* Sticky Team Counts in Step 2 right panel */
+#teamACount, #teamBCount {
+  font-weight: bold;
+}
+
+/* Improve each row inside Players panel */
+#playersPanel > div {
+  background: white;
+  border-radius: 12px;
+  border: 1px solid #eee;
+  padding: 10px;
+  margin-bottom: 10px;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.04);
+}
+
+/* Improve each row inside Team assignment panel */
+#teamAssignmentPanel > div {
+  background: white;
+  border-radius: 12px;
+  border: 1px solid #eee;
+  padding: 10px;
+  margin-bottom: 10px;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.04);
+}
+
+/* Make checkboxes and radios slightly larger for usability */
+input[type="checkbox"],
+input[type="radio"] {
+  transform: scale(1.1);
+  margin-right: 6px;
+}
+
+/* Make small labels easier to read */
+#step2 small {
+  color: #666;
+}
+
+/* Make the Manage Mode text stand out */
+#manageModeText {
+  font-weight: bold;
+  color: #e67e22;
+}
+
+/* Team assignment message */
+#teamAssignmentMessage {
+  margin-top: 10px;
+  font-weight: bold;
+  color: #e74c3c;
+}
+
+/* Improve tables inside summary */
+#finalSummarySection h2,
+#finalSummarySection h3 {
+  margin-top: 18px;
+}
+
