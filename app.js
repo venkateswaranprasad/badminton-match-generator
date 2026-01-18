@@ -6,7 +6,7 @@ let currentStep = 1;
 function showStep(stepNo) {
   currentStep = stepNo;
 
-  for (let i = 1; i <= 5; i++) {
+  for (let i = 1; i <= 4; i++) {
     const el = document.getElementById(`step${i}`);
     if (el) el.style.display = i === stepNo ? "block" : "none";
   }
@@ -20,32 +20,49 @@ function goBack() {
 }
 
 /***********************
- * GLOBAL STATE
+ * STORAGE KEYS
  ***********************/
-let players = [];
-let teamA = [];
-let teamB = [];
-let scheduledMatches = []; // Used by Step 4 & Step 5
+const GROUPS_KEY = "badmintonGroups"; // group profile + tournaments
+const TEMP_RESULTS_KEY = "badmintonMatchResults"; // per-match saves for current/any group
 
 /***********************
- * SEED + RANDOM HELPERS
+ * GLOBAL STATE (Current tournament)
  ***********************/
-function hashSeedToInt(seedStr) {
-  let h = 2166136261;
-  for (let i = 0; i < seedStr.length; i++) {
-    h ^= seedStr.charCodeAt(i);
-    h = Math.imul(h, 16777619);
-  }
-  return h >>> 0;
+let groupKey = ""; // normalized group key (lowercase)
+let groupDisplayName = ""; // original display input
+let groupPlayers = []; // master list for group [{id,name,hand}...]
+
+let manageMode = false;
+
+// Availability & team assignment for TODAY (tournament)
+let availableTodayMap = {}; // {playerId: true/false}
+let teamMap = {}; // {playerId: "A" | "B"}
+
+// Scheduled matches for tournament
+let scheduledMatches = []; // [{matchNo, teamA:[name,name], teamB:[name,name]}]
+
+/***********************
+ * UTILITIES
+ ***********************/
+function normalizeGroupName(name) {
+  return (name || "").trim().toLowerCase();
 }
 
-function mulberry32(seed) {
-  return function () {
-    let t = (seed += 0x6D2B79F5);
-    t = Math.imul(t ^ (t >>> 15), t | 1);
-    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
+function uid() {
+  return Date.now().toString(36) + Math.random().toString(36).slice(2);
+}
+
+function getGroupsStore() {
+  return JSON.parse(localStorage.getItem(GROUPS_KEY) || "{}");
+}
+
+function setGroupsStore(obj) {
+  localStorage.setItem(GROUPS_KEY, JSON.stringify(obj));
+}
+
+function getMatchesPerPlayer() {
+  const val = Number(document.getElementById("matchesPerPlayer").value);
+  return val;
 }
 
 function getRng() {
@@ -69,222 +86,447 @@ function shuffleArray(arr, rngFn) {
 }
 
 /***********************
+ * SEEDED RNG
+ ***********************/
+function hashSeedToInt(seedStr) {
+  let h = 2166136261;
+  for (let i = 0; i < seedStr.length; i++) {
+    h ^= seedStr.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return h >>> 0;
+}
+
+function mulberry32(seed) {
+  return function () {
+    let t = (seed += 0x6D2B79F5);
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+/***********************
  * STEP 1 -> STEP 2
- * Setup "Next"
  ***********************/
 function goNextFromSetup() {
-  // This will validate and build the player rows
-  createPlayerInputs();
+  const nameInput = document.getElementById("clubName").value;
+  groupDisplayName = (nameInput || "").trim();
 
-  // If rows were created, move to Step 2
-  const playerCount = Number(document.getElementById("playerCount").value);
-  if (playerCount && playerCount > 0) {
-    showStep(2);
+  if (!groupDisplayName) {
+    alert("Please enter a Club / Group Name.");
+    return;
   }
+
+  groupKey = normalizeGroupName(groupDisplayName);
+
+  const matchesPerPlayer = getMatchesPerPlayer();
+  if (!matchesPerPlayer || matchesPerPlayer < 1) {
+    alert("Please enter a valid Matches per Player value.");
+    return;
+  }
+
+  // Load group if exists
+  const groups = getGroupsStore();
+  const existingGroup = groups[groupKey];
+
+  if (existingGroup) {
+    // Existing group: use stored players
+    groupPlayers = existingGroup.players || [];
+    if (groupPlayers.length < 4) {
+      alert("This group has less than 4 players. Please add more players.");
+    }
+  } else {
+    // New group: create players from fixed rows count (playerCount)
+    const count = Number(document.getElementById("playerCount").value);
+    if (!count || count < 4) {
+      alert("Please enter at least 4 players for doubles.");
+      return;
+    }
+
+    groupPlayers = [];
+    for (let i = 0; i < count; i++) {
+      groupPlayers.push({
+        id: uid(),
+        name: "",
+        hand: "Right"
+      });
+    }
+
+    // Create group in storage now (empty names will be filled in Step 2)
+    groups[groupKey] = {
+      groupKey,
+      groupName: groupDisplayName,
+      players: groupPlayers,
+      tournaments: []
+    };
+    setGroupsStore(groups);
+  }
+
+  // Default: everyone available today ✅
+  availableTodayMap = {};
+  teamMap = {};
+  groupPlayers.forEach(p => {
+    availableTodayMap[p.id] = true;
+    teamMap[p.id] = ""; // not assigned yet
+  });
+
+  manageMode = false;
+
+  renderPlayersPanel();
+  renderTeamAssignmentPanel();
+  showStep(2);
 }
 
 /***********************
- * STEP 1: CREATE PLAYER INPUTS
+ * STEP 2 UI: Players Panel (Left)
  ***********************/
-function createPlayerInputs() {
-  const count = Number(document.getElementById("playerCount").value);
-  const section = document.getElementById("playersSection");
+function renderPlayersPanel() {
+  const panel = document.getElementById("playersPanel");
+  panel.innerHTML = "";
 
-  const matchesPerPlayer = Number(document.getElementById("matchesPerPlayer").value);
+  const groups = getGroupsStore();
+  const existingGroup = groups[groupKey];
+  const isExistingGroup = !!existingGroup;
+  const storedPlayers = existingGroup ? (existingGroup.players || []) : groupPlayers;
 
-  if (!count || count < 1) {
-    alert("Please enter a valid number of players.");
-    return;
-  }
+  // Keep groupPlayers synced
+  groupPlayers = storedPlayers;
 
-  if (!matchesPerPlayer || matchesPerPlayer < 1) {
-    alert("Please enter a valid matches per player value.");
-    return;
-  }
+  groupPlayers.forEach((p, idx) => {
+    const nameLocked = isExistingGroup && p.name && !manageMode; // lock existing player display
+    const handLocked = isExistingGroup && p.name && !manageMode;
 
-  section.innerHTML = "";
-  players = [];
+    panel.innerHTML += `
+      <div style="border-bottom:1px solid #eee; padding:8px 0;">
+        <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+          <label>
+            <input type="checkbox" ${availableTodayMap[p.id] ? "checked" : ""} 
+              onchange="toggleAvailability('${p.id}', this.checked)">
+            Available Today
+          </label>
 
-  for (let i = 0; i < count; i++) {
-    section.innerHTML += `
-      <div class="player-row">
-        Player ${i + 1}:
-        <input type="text" id="name${i}" placeholder="Name">
-        <select id="hand${i}">
-          <option value="Right">Right</option>
-          <option value="Left">Left</option>
-        </select>
+          <span style="min-width:70px;"><strong>P${idx + 1}</strong></span>
+
+          <input type="text" id="pname_${p.id}" placeholder="Player Name"
+            value="${escapeHtml(p.name)}"
+            ${nameLocked ? "disabled" : ""}
+            style="width:180px;"
+          />
+
+          <select id="phand_${p.id}" ${handLocked ? "disabled" : ""}>
+            <option value="Right" ${p.hand === "Right" ? "selected" : ""}>Right</option>
+            <option value="Left" ${p.hand === "Left" ? "selected" : ""}>Left</option>
+          </select>
+
+          ${
+            manageMode && p.name
+              ? `
+                <button type="button" onclick="saveEditedPlayer('${p.id}')">Save Edit</button>
+                <button type="button" onclick="deletePlayer('${p.id}')">Delete</button>
+              `
+              : ""
+          }
+        </div>
       </div>
     `;
-  }
+  });
+
+  document.getElementById("manageModeText").textContent = manageMode
+    ? "Manage Mode ON (past history won't be modified)"
+    : "";
+}
+
+function escapeHtml(text) {
+  return (text || "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
+
+function toggleManagePlayers() {
+  manageMode = !manageMode;
+  const btn = document.getElementById("managePlayersBtn");
+  btn.textContent = manageMode ? "Done" : "Manage Players";
+  renderPlayersPanel();
 }
 
 /***********************
- * STEP 2 -> STEP 3
- * Players "Next"
+ * Add new player row (group profile)
  ***********************/
-function goNextFromPlayers() {
-  // Collect players and build Team assignment UI
-  if (!generateMatches()) return;
-  showStep(3);
-}
+function addNewPlayerRow() {
+  const groups = getGroupsStore();
+  const group = groups[groupKey];
 
-/***********************
- * STEP 2: COLLECT PLAYERS
- * Returns true/false for wizard flow
- ***********************/
-function generateMatches() {
-  players = [];
-  teamA = [];
-  teamB = [];
-  scheduledMatches = [];
-
-  const count = Number(document.getElementById("playerCount").value);
-
-  const seenNames = new Set();
-
-  for (let i = 0; i < count; i++) {
-    const name = document.getElementById(`name${i}`).value.trim();
-    const hand = document.getElementById(`hand${i}`).value;
-
-    if (!name) {
-      alert(`Please enter a name for Player ${i + 1}`);
-      return false;
-    }
-
-    const lower = name.toLowerCase();
-    if (seenNames.has(lower)) {
-      alert(`Duplicate player name found: "${name}". Please use unique names.`);
-      return false;
-    }
-    seenNames.add(lower);
-
-    players.push({ name, hand });
+  if (!group) {
+    alert("Group not found. Please go back and enter group name again.");
+    return;
   }
 
-  showTeamAssignment();
-  return true;
+  const newPlayer = {
+    id: uid(),
+    name: "",
+    hand: "Right"
+  };
+
+  group.players.push(newPlayer);
+  groups[groupKey] = group;
+  setGroupsStore(groups);
+
+  // Update local state
+  groupPlayers = group.players;
+
+  // Default: available today checked
+  availableTodayMap[newPlayer.id] = true;
+  teamMap[newPlayer.id] = "";
+
+  renderPlayersPanel();
+  renderTeamAssignmentPanel();
 }
 
 /***********************
- * STEP 3: TEAM ASSIGNMENT UI
+ * Save edits to a player (Policy A)
  ***********************/
-function showTeamAssignment() {
-  const container = document.getElementById("teamAssignmentContainer");
-  container.innerHTML = "";
+function saveEditedPlayer(playerId) {
+  const nameEl = document.getElementById(`pname_${playerId}`);
+  const handEl = document.getElementById(`phand_${playerId}`);
 
-  players.forEach((player, index) => {
-    container.innerHTML += `
-      <div>
-        <strong>${player.name}</strong> (${player.hand})
-        <label>
-          <input type="radio" name="team${index}" value="A"> Team A
+  const newName = (nameEl.value || "").trim();
+  const newHand = handEl.value;
+
+  if (!newName) {
+    alert("Player name cannot be empty.");
+    return;
+  }
+
+  // Check duplicates within group (case-insensitive)
+  const lowerNew = newName.toLowerCase();
+  const otherNames = groupPlayers
+    .filter(p => p.id !== playerId && p.name)
+    .map(p => p.name.toLowerCase());
+
+  if (otherNames.includes(lowerNew)) {
+    alert("Duplicate player name in this group. Please choose a unique name.");
+    return;
+  }
+
+  const groups = getGroupsStore();
+  const group = groups[groupKey];
+  if (!group) return;
+
+  const p = group.players.find(x => x.id === playerId);
+  if (!p) return;
+
+  p.name = newName;
+  p.hand = newHand;
+
+  groups[groupKey] = group;
+  setGroupsStore(groups);
+
+  // Sync local
+  groupPlayers = group.players;
+
+  renderPlayersPanel();
+  renderTeamAssignmentPanel();
+}
+
+/***********************
+ * Delete player (Policy A)
+ ***********************/
+function deletePlayer(playerId) {
+  const p = groupPlayers.find(x => x.id === playerId);
+  if (!p) return;
+
+  const confirmDel = confirm(
+    `Delete "${p.name}" from group profile?\nThis will NOT change past history.`
+  );
+  if (!confirmDel) return;
+
+  const groups = getGroupsStore();
+  const group = groups[groupKey];
+  if (!group) return;
+
+  group.players = group.players.filter(x => x.id !== playerId);
+  groups[groupKey] = group;
+  setGroupsStore(groups);
+
+  // Sync local
+  groupPlayers = group.players;
+
+  delete availableTodayMap[playerId];
+  delete teamMap[playerId];
+
+  renderPlayersPanel();
+  renderTeamAssignmentPanel();
+}
+
+/***********************
+ * STEP 2 UI: Team Assignment Panel (Right)
+ * Only AVAILABLE players shown
+ ***********************/
+function renderTeamAssignmentPanel() {
+  const panel = document.getElementById("teamAssignmentPanel");
+  panel.innerHTML = "";
+
+  const availablePlayers = groupPlayers.filter(p => availableTodayMap[p.id]);
+
+  if (availablePlayers.length === 0) {
+    panel.innerHTML = "<p>No available players selected.</p>";
+    updateTeamCounts();
+    return;
+  }
+
+  availablePlayers.forEach(p => {
+    const assigned = teamMap[p.id] || "";
+    panel.innerHTML += `
+      <div style="padding:6px 0; border-bottom:1px solid #eee;">
+        <strong>${escapeHtml(p.name || "(Unnamed)")}</strong> (${p.hand})
+        <label style="margin-left:10px;">
+          <input type="radio" name="team_${p.id}" value="A"
+            ${assigned === "A" ? "checked" : ""}
+            onchange="setTeam('${p.id}', 'A')"> Team A
         </label>
-        <label>
-          <input type="radio" name="team${index}" value="B"> Team B
+        <label style="margin-left:10px;">
+          <input type="radio" name="team_${p.id}" value="B"
+            ${assigned === "B" ? "checked" : ""}
+            onchange="setTeam('${p.id}', 'B')"> Team B
         </label>
       </div>
     `;
   });
 
+  updateTeamCounts();
+}
+
+function setTeam(playerId, team) {
+  teamMap[playerId] = team;
+  updateTeamCounts();
+}
+
+function toggleAvailability(playerId, isAvailable) {
+  availableTodayMap[playerId] = isAvailable;
+
+  // If making unavailable, clear team selection
+  if (!isAvailable) {
+    teamMap[playerId] = "";
+  }
+
+  renderTeamAssignmentPanel();
+}
+
+function updateTeamCounts() {
+  const availablePlayers = groupPlayers.filter(p => availableTodayMap[p.id]);
+
+  let a = 0;
+  let b = 0;
+  availablePlayers.forEach(p => {
+    if (teamMap[p.id] === "A") a++;
+    if (teamMap[p.id] === "B") b++;
+  });
+
+  document.getElementById("teamACount").textContent = a;
+  document.getElementById("teamBCount").textContent = b;
+}
+
+/***********************
+ * STEP 2 -> STEP 3 (Generate schedule)
+ ***********************/
+function goNextFromPlayersTeams() {
   document.getElementById("teamAssignmentMessage").textContent = "";
-}
 
-/***********************
- * STEP 3 -> STEP 4
- * Teams "Generate Schedule"
- ***********************/
-function goNextFromTeams() {
-  if (!generateMatchesFromTeams()) return;
-  showStep(4);
-}
+  // Validate player names for new players
+  // Ensure all players (especially new) have names
+  for (const p of groupPlayers) {
+    const nameEl = document.getElementById(`pname_${p.id}`);
+    const handEl = document.getElementById(`phand_${p.id}`);
 
-/***********************
- * STEP 4: VALIDATE TEAMS & SCHEDULE
- * Return true/false for wizard flow
- ***********************/
-function generateMatchesFromTeams() {
-  teamA = [];
-  teamB = [];
-  scheduledMatches = [];
-
-  const matchesPerPlayer = Number(document.getElementById("matchesPerPlayer").value);
-  if (!matchesPerPlayer || matchesPerPlayer < 1) {
-    setMessage("Please enter a valid matches per player value.");
-    return false;
-  }
-
-  for (let i = 0; i < players.length; i++) {
-    const selected = document.querySelector(`input[name="team${i}"]:checked`);
-    if (!selected) {
-      setMessage("Please assign every player to a team.");
-      return false;
+    // If input exists, take latest typed values
+    if (nameEl && handEl) {
+      p.name = (nameEl.value || "").trim();
+      p.hand = handEl.value;
     }
-    if (selected.value === "A") teamA.push(players[i]);
-    else teamB.push(players[i]);
+
+    // If player exists but is unnamed, force name
+    if (!p.name) {
+      alert("Please enter names for all players in the group list.");
+      return;
+    }
   }
 
-  if (teamA.length < 2 || teamB.length < 2) {
-    setMessage("Each team must have at least 2 players for doubles.");
-    return false;
-  }
-
-  const totalPlayers = teamA.length + teamB.length;
-  const totalMatchesNeeded = Math.ceil((totalPlayers * matchesPerPlayer) / 4);
-
-  setMessage(
-    `Teams confirmed ✔️ Team A: ${teamA.length} players, Team B: ${teamB.length} players.
-Matches per player: ${matchesPerPlayer}. Total matches scheduled: ${totalMatchesNeeded}`
-  );
-
-  scheduleMatchesSmart(totalMatchesNeeded, matchesPerPlayer);
-  return true;
-}
-
-/***********************
- * RE-GENERATE (Step 4)
- ***********************/
-function regenerateMatches() {
-  const matchesPerPlayer = Number(document.getElementById("matchesPerPlayer").value);
-
-  if (!matchesPerPlayer || matchesPerPlayer < 1) {
-    setMessage("Please enter a valid matches per player value.");
+  // Save updated players to group profile
+  const groups = getGroupsStore();
+  const group = groups[groupKey];
+  if (!group) {
+    alert("Group not found. Please go back to Setup.");
     return;
   }
 
-  if (teamA.length < 2 || teamB.length < 2) {
-    setMessage("Please ensure both Team A and Team B have at least 2 players.");
+  // Check duplicates in group
+  const seen = new Set();
+  for (const p of groupPlayers) {
+    const key = p.name.toLowerCase();
+    if (seen.has(key)) {
+      alert(`Duplicate player name: "${p.name}". Please fix.`);
+      return;
+    }
+    seen.add(key);
+  }
+
+  group.players = groupPlayers;
+  groups[groupKey] = group;
+  setGroupsStore(groups);
+
+  // Validate available today
+  const availablePlayers = groupPlayers.filter(p => availableTodayMap[p.id]);
+
+  if (availablePlayers.length < 4) {
+    alert("At least 4 available players are required for doubles.");
     return;
   }
 
-  const totalPlayers = teamA.length + teamB.length;
+  // Validate team assignment for available players
+  const teamA = [];
+  const teamB = [];
+
+  for (const p of availablePlayers) {
+    if (teamMap[p.id] !== "A" && teamMap[p.id] !== "B") {
+      document.getElementById("teamAssignmentMessage").textContent =
+        "Please assign all available players to Team A or Team B.";
+      return;
+    }
+    if (teamMap[p.id] === "A") teamA.push(p);
+    if (teamMap[p.id] === "B") teamB.push(p);
+  }
+
+  if (teamA.length < 2 || teamB.length < 2) {
+    document.getElementById("teamAssignmentMessage").textContent =
+      "Each team must have at least 2 players.";
+    return;
+  }
+
+  const matchesPerPlayer = getMatchesPerPlayer();
+  const totalPlayers = availablePlayers.length;
   const totalMatchesNeeded = Math.ceil((totalPlayers * matchesPerPlayer) / 4);
 
-  scheduleMatchesSmart(totalMatchesNeeded, matchesPerPlayer);
-  setMessage("Schedule re-generated ✔️");
+  scheduleMatchesSmart(teamA, teamB, totalMatchesNeeded);
+
+  showStep(3);
 }
 
 /***********************
- * STEP 4 -> STEP 5
- * Schedule "Let's Play"
+ * STEP 3: schedule + regenerate
  ***********************/
-function goNextFromSchedule() {
-  letsPlay();
-  showStep(5);
-}
-
-/***********************
- * SMART MATCH SCHEDULING
- ***********************/
-function scheduleMatchesSmart(matchCount, targetMatchesPerPlayer) {
+function scheduleMatchesSmart(teamAPlayers, teamBPlayers, matchCount) {
   const resultsDiv = document.getElementById("matchResults");
   resultsDiv.innerHTML = "";
 
   const rng = getRng();
   const randomnessLevel = getRandomnessLevel();
 
-  const teamAShuffled = [...teamA];
-  const teamBShuffled = [...teamB];
+  const teamAShuffled = [...teamAPlayers];
+  const teamBShuffled = [...teamBPlayers];
 
   if (randomnessLevel > 0) {
     const shuffleTimes = 1 + Math.floor((randomnessLevel / 100) * 2);
@@ -367,81 +609,105 @@ function scheduleMatchesSmart(matchCount, targetMatchesPerPlayer) {
     });
   }
 
-  // Render schedule on Step 4
   scheduledMatches.forEach(match => {
     resultsDiv.innerHTML += `
       <div>
         <strong>Match ${match.matchNo}</strong><br>
-        Team A: ${match.teamA[0]} + ${match.teamA[1]}<br>
-        Team B: ${match.teamB[0]} + ${match.teamB[1]}
+        Team A: ${escapeHtml(match.teamA[0])} + ${escapeHtml(match.teamA[1])}<br>
+        Team B: ${escapeHtml(match.teamB[0])} + ${escapeHtml(match.teamB[1])}
       </div>
       <hr>
     `;
   });
+
+  // Clear any previous final section
+  const finalSection = document.getElementById("finalSummarySection");
+  if (finalSection) finalSection.style.display = "none";
+
+  // Clear play grid (so it regenerates fresh when user goes Next)
+  document.getElementById("playMatchesGrid").innerHTML = "";
 }
 
-/***********************
- * STEP 5: LET'S PLAY UI
- ***********************/
-function letsPlay() {
-  if (!scheduledMatches || scheduledMatches.length === 0) {
-    alert("Please generate matches first.");
+function regenerateMatches() {
+  // Build current available players + teams again from maps
+  const availablePlayers = groupPlayers.filter(p => availableTodayMap[p.id]);
+  const teamA = availablePlayers.filter(p => teamMap[p.id] === "A");
+  const teamB = availablePlayers.filter(p => teamMap[p.id] === "B");
+
+  if (teamA.length < 2 || teamB.length < 2) {
+    alert("Each team must have at least 2 available players.");
     return;
   }
 
-  // Hide final summary until concluded
-  const finalSection = document.getElementById("finalSummarySection");
-  if (finalSection) finalSection.style.display = "none";
+  const matchesPerPlayer = getMatchesPerPlayer();
+  const totalPlayers = availablePlayers.length;
+  const totalMatchesNeeded = Math.ceil((totalPlayers * matchesPerPlayer) / 4);
+
+  scheduleMatchesSmart(teamA, teamB, totalMatchesNeeded);
+}
+
+function goNextFromSchedule() {
+  letsPlay();
+  showStep(4);
+}
+
+/***********************
+ * STEP 4: Let’s Play (score entry)
+ ***********************/
+function letsPlay() {
+  if (!scheduledMatches || scheduledMatches.length === 0) {
+    alert("No scheduled matches found.");
+    return;
+  }
 
   const grid = document.getElementById("playMatchesGrid");
   grid.innerHTML = "";
 
   scheduledMatches.forEach(match => {
     grid.innerHTML += `
-      <div class="play-card" id="playCard${match.matchNo}">
+      <div style="border:1px solid #ddd; padding:12px; border-radius:8px; margin-bottom:10px;">
         <div><strong>Match ${match.matchNo}</strong></div>
 
-        <div>
-          Team A: <span>${match.teamA[0]} + ${match.teamA[1]}</span>
+        <div style="margin-top:6px;">
+          Team A: ${escapeHtml(match.teamA.join(" + "))}
         </div>
 
-        <div class="play-row">
+        <div style="margin-top:6px;">
+          Team B: ${escapeHtml(match.teamB.join(" + "))}
+        </div>
+
+        <div style="margin-top:10px; display:flex; gap:10px; align-items:center;">
           <label>Score A:</label>
-          <input class="score-input" type="number" id="scoreA${match.matchNo}" min="0">
-        </div>
-
-        <div>
-          Team B: <span>${match.teamB[0]} + ${match.teamB[1]}</span>
-        </div>
-
-        <div class="play-row">
+          <input type="number" id="scoreA${match.matchNo}" min="0" style="width:70px;">
           <label>Score B:</label>
-          <input class="score-input" type="number" id="scoreB${match.matchNo}" min="0">
-        </div>
-
-        <div class="play-row">
+          <input type="number" id="scoreB${match.matchNo}" min="0" style="width:70px;">
           <button onclick="saveMatchResult(${match.matchNo})">Save</button>
-          <span id="saveMsg${match.matchNo}" style="margin-left:10px;"></span>
+          <span id="saveMsg${match.matchNo}" style="margin-left:6px;"></span>
         </div>
       </div>
     `;
   });
+
+  // Hide final summary until concluded
+  document.getElementById("finalSummarySection").style.display = "none";
 }
 
 /***********************
- * SAVE MATCH RESULT
+ * Save per-match result (temporary store)
  ***********************/
 function saveMatchResult(matchNo) {
   const scoreAEl = document.getElementById(`scoreA${matchNo}`);
   const scoreBEl = document.getElementById(`scoreB${matchNo}`);
 
-  const scoreA = Number(scoreAEl.value);
-  const scoreB = Number(scoreBEl.value);
+  if (!scoreAEl || !scoreBEl) return;
 
   if (scoreAEl.value === "" || scoreBEl.value === "") {
     alert("Please enter both scores.");
     return;
   }
+
+  const scoreA = Number(scoreAEl.value);
+  const scoreB = Number(scoreBEl.value);
 
   if (Number.isNaN(scoreA) || Number.isNaN(scoreB)) {
     alert("Please enter valid numeric scores.");
@@ -454,10 +720,7 @@ function saveMatchResult(matchNo) {
   }
 
   const match = scheduledMatches.find(m => m.matchNo === matchNo);
-  if (!match) {
-    alert("Match not found.");
-    return;
-  }
+  if (!match) return;
 
   const winnerTeam = scoreA > scoreB ? "A" : "B";
 
@@ -465,11 +728,9 @@ function saveMatchResult(matchNo) {
   msgEl.textContent = `Saved ✅ Team ${winnerTeam} won`;
   msgEl.style.fontWeight = "bold";
 
-  const groupName =
-    (document.getElementById("clubName").value || "").trim() || "Unknown Group";
-
   const resultObj = {
-    groupName,
+    groupKey,
+    groupName: groupDisplayName,
     matchNo,
     teamA: match.teamA,
     teamB: match.teamB,
@@ -479,36 +740,32 @@ function saveMatchResult(matchNo) {
     savedAt: new Date().toISOString()
   };
 
-  storeMatchResult(resultObj);
+  storeTempMatchResult(resultObj);
 }
 
-function storeMatchResult(resultObj) {
-  const key = "badmintonMatchResults";
-  const existing = JSON.parse(localStorage.getItem(key) || "[]");
+function storeTempMatchResult(resultObj) {
+  const existing = JSON.parse(localStorage.getItem(TEMP_RESULTS_KEY) || "[]");
 
-  // Replace old record for same group + matchNo if exists
+  // Replace old record for same groupKey + matchNo
   const filtered = existing.filter(
-    r => !(r.groupName === resultObj.groupName && r.matchNo === resultObj.matchNo)
+    r => !(r.groupKey === resultObj.groupKey && r.matchNo === resultObj.matchNo)
   );
 
   filtered.push(resultObj);
-  localStorage.setItem(key, JSON.stringify(filtered));
+  localStorage.setItem(TEMP_RESULTS_KEY, JSON.stringify(filtered));
 }
 
 /***********************
- * CONCLUDE PLAY
+ * Conclude Play -> Build Final Summary
  ***********************/
 function concludePlay() {
-  const groupName =
-    (document.getElementById("clubName").value || "").trim() || "Unknown Group";
-
-  const allResults = JSON.parse(localStorage.getItem("badmintonMatchResults") || "[]");
+  const allResults = JSON.parse(localStorage.getItem(TEMP_RESULTS_KEY) || "[]");
   const groupResults = allResults
-    .filter(r => r.groupName === groupName)
+    .filter(r => r.groupKey === groupKey)
     .sort((a, b) => a.matchNo - b.matchNo);
 
   if (groupResults.length === 0) {
-    alert("No match results found to conclude. Please save scores first.");
+    alert("No match results found. Save scores for matches first.");
     return;
   }
 
@@ -568,10 +825,12 @@ function concludePlay() {
   matchTable += `</table>`;
   document.getElementById("matchSummary").innerHTML = matchTable;
 
+  // Player of tournament (max match wins)
   const playerWinCount = {};
+
   groupResults.forEach(r => {
-    const winningPlayers = r.winnerTeam === "A" ? r.teamA : r.teamB;
-    winningPlayers.forEach(p => {
+    const winners = r.winnerTeam === "A" ? r.teamA : r.teamB;
+    winners.forEach(p => {
       playerWinCount[p] = (playerWinCount[p] || 0) + 1;
     });
   });
@@ -586,99 +845,105 @@ function concludePlay() {
 }
 
 /***********************
- * SAVE RESULTS BY GROUP
+ * Save Results -> Save Tournament under Group + Reset today selections
  ***********************/
 function saveResults() {
-  const groupName = (document.getElementById("clubName").value || "").trim();
-  if (!groupName) {
-    alert("Please enter a Group Name.");
-    return;
-  }
-
-  const matchesPerPlayer = Number(document.getElementById("matchesPerPlayer").value);
-
-  const allResults = JSON.parse(localStorage.getItem("badmintonMatchResults") || "[]");
+  const allResults = JSON.parse(localStorage.getItem(TEMP_RESULTS_KEY) || "[]");
   const groupResults = allResults
-    .filter(r => r.groupName === groupName)
+    .filter(r => r.groupKey === groupKey)
     .sort((a, b) => a.matchNo - b.matchNo);
 
   if (groupResults.length === 0) {
-    alert("No saved match results found. Please save scores first.");
+    alert("No saved match results found. Save scores first.");
     return;
   }
+
+  const availablePlayers = groupPlayers.filter(p => availableTodayMap[p.id]);
+  const teamA = availablePlayers.filter(p => teamMap[p.id] === "A").map(p => p.name);
+  const teamB = availablePlayers.filter(p => teamMap[p.id] === "B").map(p => p.name);
 
   const tournamentRecord = {
     tournamentId: Date.now(),
     savedAt: new Date().toISOString(),
-    matchesPerPlayer,
-    teamA: teamA.map(p => p.name),
-    teamB: teamB.map(p => p.name),
+    matchesPerPlayer: getMatchesPerPlayer(),
+    availablePlayers: availablePlayers.map(p => p.name),
+    teamA,
+    teamB,
     scheduledMatches,
     matchResults: groupResults
   };
 
-  const key = "badmintonGroups";
-  const groups = JSON.parse(localStorage.getItem(key) || "{}");
+  const groups = getGroupsStore();
+  const group = groups[groupKey];
 
-  if (!groups[groupName]) {
-    groups[groupName] = {
-      groupName,
-      tournaments: []
-    };
+  if (!group) {
+    alert("Group not found. Please restart.");
+    return;
   }
 
-  groups[groupName].tournaments.push(tournamentRecord);
-  localStorage.setItem(key, JSON.stringify(groups));
+  group.tournaments = group.tournaments || [];
+  group.tournaments.push(tournamentRecord);
 
-disableAllButtons();
+  groups[groupKey] = group;
+  setGroupsStore(groups);
 
-setTimeout(() => {
-  alert("Results saved ✅ Starting a new tournament.");
+  // Remove temp match results for this group so next tournament starts clean
+  const remaining = allResults.filter(r => r.groupKey !== groupKey);
+  localStorage.setItem(TEMP_RESULTS_KEY, JSON.stringify(remaining));
+
+  alert("Results saved ✅ Starting a new tournament for this group.");
+
+  // Reset today selections (Option 1)
   resetAll();
-  enableAllButtons();
-}, 300);
-
 }
 
 /***********************
- * FETCH GROUP HISTORY (Step 1)
+ * Fetch / Reset Group History (Step 1)
  ***********************/
 function checkGroupHistory() {
-  const groupName = (document.getElementById("clubName").value || "").trim();
+  const nameInput = document.getElementById("clubName").value;
+  const display = (nameInput || "").trim();
 
-  if (!groupName) {
+  if (!display) {
     document.getElementById("historyMessage").textContent =
       "Please enter a group name to fetch history.";
     return;
   }
 
-  const groups = JSON.parse(localStorage.getItem("badmintonGroups") || "{}");
+  const key = normalizeGroupName(display);
+  const groups = getGroupsStore();
 
-  if (!groups[groupName] || groups[groupName].tournaments.length === 0) {
+  if (!groups[key] || (groups[key].tournaments || []).length === 0) {
     document.getElementById("historyMessage").textContent =
       "No history found for this group.";
     document.getElementById("historySection").style.display = "none";
+
+    // Keep new group setup visible
+    document.getElementById("newGroupSetup").style.display = "block";
     return;
   }
 
   document.getElementById("historyMessage").textContent =
-    `Found ${groups[groupName].tournaments.length} saved tournament(s).`;
+    `Found ${(groups[key].tournaments || []).length} saved tournament(s).`;
 
-  showGroupHistory(groupName);
+  // Existing group -> hide new group count field
+  document.getElementById("newGroupSetup").style.display = "none";
+
+  showGroupHistory(key);
 }
 
-function showGroupHistory(groupName) {
-  const groups = JSON.parse(localStorage.getItem("badmintonGroups") || "{}");
-  const tournaments = groups[groupName].tournaments || [];
+function showGroupHistory(key) {
+  const groups = getGroupsStore();
+  const tournaments = (groups[key].tournaments || []).slice().reverse();
 
   const historyList = document.getElementById("historyList");
   historyList.innerHTML = "";
 
-  tournaments.slice().reverse().forEach(t => {
+  tournaments.forEach(t => {
     historyList.innerHTML += `
-      <div style="border:1px solid #ddd; padding:10px; margin:10px 0;">
+      <div style="border:1px solid #ddd; padding:10px; margin:10px 0; border-radius:8px;">
         <strong>Date:</strong> ${new Date(t.savedAt).toLocaleString()}<br>
-        <strong>Matches per player:</strong> ${t.matchesPerPlayer}<br>
+        <strong>Available Players:</strong> ${t.availablePlayers.join(", ")}<br>
         <strong>Team A:</strong> ${t.teamA.join(", ")}<br>
         <strong>Team B:</strong> ${t.teamB.join(", ")}<br>
       </div>
@@ -688,60 +953,79 @@ function showGroupHistory(groupName) {
   document.getElementById("historySection").style.display = "block";
 }
 
+function resetGroupHistory() {
+  const nameInput = document.getElementById("clubName").value;
+  const display = (nameInput || "").trim();
+
+  if (!display) {
+    alert("Please enter a group name first.");
+    return;
+  }
+
+  const key = normalizeGroupName(display);
+  const groups = getGroupsStore();
+
+  if (!groups[key]) {
+    alert("Group not found.");
+    return;
+  }
+
+  const ok = confirm(
+    `Reset history for "${display}"?\nThis will delete all saved tournaments for this group.`
+  );
+  if (!ok) return;
+
+  // Clear tournaments
+  groups[key].tournaments = [];
+  setGroupsStore(groups);
+
+  // Clear temp results for this group as well
+  const allResults = JSON.parse(localStorage.getItem(TEMP_RESULTS_KEY) || "[]");
+  const remaining = allResults.filter(r => r.groupKey !== key);
+  localStorage.setItem(TEMP_RESULTS_KEY, JSON.stringify(remaining));
+
+  document.getElementById("historyMessage").textContent = "History cleared ✅";
+  document.getElementById("historySection").style.display = "none";
+  document.getElementById("historyList").innerHTML = "";
+}
+
 /***********************
- * RESET
+ * RESET (Full reset to Step 1)
  ***********************/
 function resetAll() {
-  document.getElementById("clubName").value = "";
+  // UI inputs
   document.getElementById("playerCount").value = "";
   document.getElementById("matchesPerPlayer").value = 1;
-
-  const seedInputEl = document.getElementById("seedInput");
-  if (seedInputEl) seedInputEl.value = "";
-
-  const randomEl = document.getElementById("randomnessLevel");
-  if (randomEl) randomEl.value = 30;
-
-  document.getElementById("playersSection").innerHTML = "";
-  document.getElementById("teamAssignmentContainer").innerHTML = "";
-  document.getElementById("teamAssignmentMessage").textContent = "";
+  document.getElementById("seedInput").value = "";
+  document.getElementById("randomnessLevel").value = 30;
 
   document.getElementById("matchResults").innerHTML = "";
   document.getElementById("playMatchesGrid").innerHTML = "";
 
+  document.getElementById("teamAssignmentMessage").textContent = "";
+
+  // Hide final summary
+  document.getElementById("finalSummarySection").style.display = "none";
+
+  // Reset state (Option 1: new tournament fresh)
+  manageMode = false;
+  availableTodayMap = {};
+  teamMap = {};
+  scheduledMatches = [];
+
+  // Keep group name in input for convenience OR clear it?
+  // We'll clear it to match "landing page appear" request.
+  document.getElementById("clubName").value = "";
+
+  // History area cleared
   document.getElementById("historyMessage").textContent = "";
   document.getElementById("historySection").style.display = "none";
   document.getElementById("historyList").innerHTML = "";
 
-  const finalSection = document.getElementById("finalSummarySection");
-  if (finalSection) finalSection.style.display = "none";
-
-  players = [];
-  teamA = [];
-  teamB = [];
-  scheduledMatches = [];
+  // Show new group setup by default
+  document.getElementById("newGroupSetup").style.display = "block";
 
   showStep(1);
-}
-
-function disableAllButtons() {
-  document.querySelectorAll("button").forEach(btn => {
-    btn.disabled = true;
-  });
-}
-
-function enableAllButtons() {
-  document.querySelectorAll("button").forEach(btn => {
-    btn.disabled = false;
-  });
-}
-
-
-/***********************
- * HELPER: MESSAGE DISPLAY
- ***********************/
-function setMessage(text) {
-  document.getElementById("teamAssignmentMessage").textContent = text;
 }
 
 /***********************
