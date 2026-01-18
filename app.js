@@ -277,6 +277,51 @@ function renderStats(playedCount, targetMatchesPerPlayer) {
   document.getElementById("statsSection").style.display = "block";
 }
 
+function regenerateMatches() {
+  // Just regenerate schedule again using current teams
+  const matchesPerPlayer = Number(document.getElementById("matchesPerPlayer").value);
+  if (!matchesPerPlayer || matchesPerPlayer < 1) {
+    setMessage("Please enter a valid matches per player value.");
+    return;
+  }
+
+  if (teamA.length < 2 || teamB.length < 2) {
+    setMessage("Please ensure both Team A and Team B have at least 2 players.");
+    return;
+  }
+
+  const totalPlayers = teamA.length + teamB.length;
+  const totalMatchesNeeded = Math.ceil((totalPlayers * matchesPerPlayer) / 4);
+
+  scheduleMatchesSmart(totalMatchesNeeded, matchesPerPlayer);
+  setMessage("Matches re-generated ✔️");
+}
+
+function resetAll() {
+  // Clear inputs and UI sections
+  document.getElementById("clubName").value = "";
+  document.getElementById("playerCount").value = "";
+  document.getElementById("matchesPerPlayer").value = 1;
+
+  document.getElementById("playersSection").innerHTML = "";
+  document.getElementById("generateBtn").style.display = "none";
+
+  document.getElementById("teamAssignmentContainer").innerHTML = "";
+  document.getElementById("teamAssignmentMessage").textContent = "";
+  document.getElementById("teamAssignmentSection").style.display = "none";
+
+  document.getElementById("matchResults").innerHTML = "";
+  document.getElementById("matchSection").style.display = "none";
+
+  document.getElementById("playerStats").innerHTML = "";
+  document.getElementById("statsSection").style.display = "none";
+
+  // Reset memory variables
+  players = [];
+  teamA = [];
+  teamB = [];
+}
+
 /***********************
  * HELPER: MESSAGE DISPLAY
  ***********************/
