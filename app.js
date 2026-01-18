@@ -45,7 +45,6 @@ function createPlayerInputs() {
 
 /***********************
  * STEP 2: COLLECT PLAYERS
- * SHOW TEAM ASSIGNMENT
  ***********************/
 function generateMatches() {
   players = [];
@@ -95,22 +94,18 @@ function showTeamAssignment() {
 }
 
 /***********************
- * STEP 4: VALIDATE TEAMS
- * CALCULATE TOTAL MATCHES NEEDED
- * SCHEDULE MATCHES
+ * STEP 4: VALIDATE TEAMS & SCHEDULE
  ***********************/
 function generateMatchesFromTeams() {
   teamA = [];
   teamB = [];
 
-  // Get matches per player
   const matchesPerPlayer = Number(document.getElementById("matchesPerPlayer").value);
   if (!matchesPerPlayer || matchesPerPlayer < 1) {
     setMessage("Please enter a valid matches per player value.");
     return;
   }
 
-  // Build Team A and Team B arrays
   for (let i = 0; i < players.length; i++) {
     const selected = document.querySelector(`input[name="team${i}"]:checked`);
 
@@ -126,7 +121,6 @@ function generateMatchesFromTeams() {
     }
   }
 
-  // Basic validation for doubles
   if (teamA.length < 2 || teamB.length < 2) {
     setMessage("Each team must have at least 2 players for doubles.");
     return;
@@ -134,49 +128,153 @@ function generateMatchesFromTeams() {
 
   const totalPlayers = teamA.length + teamB.length;
 
-  // ✅ Total matches required for desired matches-per-player
-  // Each doubles match uses 4 players total (2 from A + 2 from B)
+  // Total match slots required: totalPlayers * matchesPerPlayer
+  // Each match uses 4 players total.
   const totalMatchesNeeded = Math.ceil((totalPlayers * matchesPerPlayer) / 4);
 
   setMessage(
     `Teams confirmed ✔️ Team A: ${teamA.length} players, Team B: ${teamB.length} players.
-     Matches per player: ${matchesPerPlayer}. Total matches scheduled: ${totalMatchesNeeded}`
+Matches per player: ${matchesPerPlayer}. Total matches scheduled: ${totalMatchesNeeded}`
   );
 
-  scheduleMatches(totalMatchesNeeded);
+  scheduleMatchesSmart(totalMatchesNeeded, matchesPerPlayer);
 }
 
 /***********************
- * STEP 5: SIMPLE MATCH SCHEDULING (ROTATION)
+ * SMART MATCH SCHEDULING
+ * - Balance playtime
+ * - Reduce repeated pairs (best effort)
+ * - Track stats live
  ***********************/
-function scheduleMatches(matchCount) {
+function scheduleMatchesSmart(matchCount, targetMatchesPerPlayer) {
   const resultsDiv = document.getElementById("matchResults");
   resultsDiv.innerHTML = "";
 
-  let aIndex = 0;
-  let bIndex = 0;
+  // Init play count maps
+  const playedCount = {};
+  [...teamA, ...teamB].forEach(p => {
+    playedCount[p.name] = 0;
+  });
 
-  for (let i = 0; i < matchCount; i++) {
-    const a1 = teamA[aIndex % teamA.length];
-    const a2 = teamA[(aIndex + 1) % teamA.length];
+  // Track pair repeats inside each team
+  // key format: "A|B" sorted
+  const pairCountA = {};
+  const pairCountB = {};
 
-    const b1 = teamB[bIndex % teamB.length];
-    const b2 = teamB[(bIndex + 1) % teamB.length];
+  function pairKey(n1, n2) {
+    return [n1, n2].sort().join("|");
+  }
 
+  function getPairCount(pairMap, n1, n2) {
+    const key = pairKey(n1, n2);
+    return pairMap[key] || 0;
+  }
+
+  function incPairCount(pairMap, n1, n2) {
+    const key = pairKey(n1, n2);
+    pairMap[key] = (pairMap[key] || 0) + 1;
+  }
+
+  // Choose 2 players from a team with least matches played,
+  // and minimize pair repeats as tie-breaker
+  function chooseTwo(team, pairMap) {
+    // Sort players by least matches played
+    const sorted = [...team].sort((p1, p2) => playedCount[p1.name] - playedCount[p2.name]);
+
+    // Try first few combinations from least-played list
+    // This keeps it simple & fast.
+    let bestPair = null;
+    let bestScore = Infinity;
+
+    const limit = Math.min(sorted.length, 6); // only check a small top set
+
+    for (let i = 0; i < limit; i++) {
+      for (let j = i + 1; j < limit; j++) {
+        const p1 = sorted[i];
+        const p2 = sorted[j];
+
+        // score = total matches played + repeat penalty
+        const repeat = getPairCount(pairMap, p1.name, p2.name);
+        const score =
+          playedCount[p1.name] +
+          playedCount[p2.name] +
+          repeat * 5; // repeat penalty weight
+
+        if (score < bestScore) {
+          bestScore = score;
+          bestPair = [p1, p2];
+        }
+      }
+    }
+
+    // Fallback (should not happen)
+    if (!bestPair) {
+      bestPair = [sorted[0], sorted[1]];
+    }
+
+    return bestPair;
+  }
+
+  const scheduledMatches = [];
+
+  for (let m = 1; m <= matchCount; m++) {
+    const [a1, a2] = chooseTwo(teamA, pairCountA);
+    const [b1, b2] = chooseTwo(teamB, pairCountB);
+
+    // Update counts
+    playedCount[a1.name]++;
+    playedCount[a2.name]++;
+    playedCount[b1.name]++;
+    playedCount[b2.name]++;
+
+    incPairCount(pairCountA, a1.name, a2.name);
+    incPairCount(pairCountB, b1.name, b2.name);
+
+    scheduledMatches.push({
+      matchNo: m,
+      teamA: [a1.name, a2.name],
+      teamB: [b1.name, b2.name]
+    });
+  }
+
+  // Render matches
+  scheduledMatches.forEach(match => {
     resultsDiv.innerHTML += `
       <div>
-        <strong>Match ${i + 1}</strong><br>
-        Team A: ${a1.name} + ${a2.name}<br>
-        Team B: ${b1.name} + ${b2.name}
+        <strong>Match ${match.matchNo}</strong><br>
+        Team A: ${match.teamA[0]} + ${match.teamA[1]}<br>
+        Team B: ${match.teamB[0]} + ${match.teamB[1]}
       </div>
       <hr>
     `;
-
-    aIndex += 2;
-    bIndex += 2;
-  }
+  });
 
   document.getElementById("matchSection").style.display = "block";
+
+  // Render player stats
+  renderStats(playedCount, targetMatchesPerPlayer);
+}
+
+/***********************
+ * PLAYER STATS DISPLAY
+ ***********************/
+function renderStats(playedCount, targetMatchesPerPlayer) {
+  const statsDiv = document.getElementById("playerStats");
+  statsDiv.innerHTML = "";
+
+  const allPlayers = [...teamA, ...teamB].map(p => p.name).sort();
+
+  allPlayers.forEach(name => {
+    const played = playedCount[name] || 0;
+
+    statsDiv.innerHTML += `
+      <div>
+        <strong>${name}</strong> — Matches Played: ${played} / Target: ${targetMatchesPerPlayer}
+      </div>
+    `;
+  });
+
+  document.getElementById("statsSection").style.display = "block";
 }
 
 /***********************
