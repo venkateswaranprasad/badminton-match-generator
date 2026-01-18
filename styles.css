@@ -24,12 +24,73 @@ h2 {
   border-radius: 8px;
 }
 
-/* ===== Step Indicator ===== */
+/* ===== Step Indicator + Stepper ===== */
 #stepIndicator {
+  max-width: 950px;
+  margin: 0 auto 25px auto;
   text-align: center;
-  font-size: 16px;
   color: #444;
-  margin-bottom: 25px;
+}
+
+#stepText {
+  font-size: 16px;
+  font-weight: bold;
+  margin-bottom: 10px;
+}
+
+/* Visual stepper */
+.stepper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+
+.stepper-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 70px;
+}
+
+.stepper-dot {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: #e6e6e6;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-weight: bold;
+  color: #333;
+  border: 2px solid #ccc;
+}
+
+.stepper-label {
+  margin-top: 6px;
+  font-size: 12px;
+  color: #555;
+}
+
+.stepper-line {
+  width: 55px;
+  height: 4px;
+  border-radius: 10px;
+  background: #e6e6e6;
+}
+
+/* Active step */
+.stepper-item.active .stepper-dot {
+  background: #4a90e2;
+  color: white;
+  border-color: #4a90e2;
+}
+
+/* Completed step */
+.stepper-item.done .stepper-dot {
+  background: #2ecc71;
+  border-color: #2ecc71;
+  color: white;
 }
 
 /* ===== Wizard Card ===== */
@@ -72,10 +133,13 @@ button {
   font-size: 14px;
   transition: 0.2s ease;
   margin: 5px 5px 5px 0;
+  background: #4a90e2;
+  color: white;
 }
 
 button:hover {
   transform: translateY(-1px);
+  background: #357bd8;
 }
 
 button:active {
@@ -87,17 +151,7 @@ button:disabled {
   cursor: not-allowed;
 }
 
-/* Primary button */
-button {
-  background: #4a90e2;
-  color: white;
-}
-
-button:hover {
-  background: #357bd8;
-}
-
-/* Secondary button style (optional) */
+/* Secondary button */
 button.secondary {
   background: #e6e6e6;
   color: #222;
@@ -107,7 +161,7 @@ button.secondary:hover {
   background: #d6d6d6;
 }
 
-/* Danger button style */
+/* Danger button */
 button.danger {
   background: #e74c3c;
   color: white;
@@ -118,15 +172,33 @@ button.danger:hover {
 }
 
 /* ===== Panels inside Step 2 ===== */
-#playersPanel, #teamAssignmentPanel {
+#playersPanel,
+#teamAssignmentPanel {
   max-height: 420px;
   overflow-y: auto;
   padding-right: 6px;
 }
 
-/* Player rows */
-.player-row {
+/* ===== Schedule Section Improvements ===== */
+#matchResults > div {
+  background: white;
+  padding: 12px;
+  border-radius: 12px;
+  border: 1px solid #eee;
   margin-bottom: 10px;
+}
+
+/* ===== Match Cards Grid (Step 4) ===== */
+#playMatchesGrid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 14px;
+}
+
+@media (min-width: 900px) {
+  #playMatchesGrid {
+    grid-template-columns: 1fr 1fr;
+  }
 }
 
 /* Match cards in Play step */
@@ -134,9 +206,10 @@ button.danger:hover {
   background: white;
   border-radius: 14px;
   box-shadow: 0 6px 14px rgba(0,0,0,0.06);
+  border: 1px solid #eee;
 }
 
-/* Final result tables */
+/* ===== Final result tables ===== */
 table {
   border-collapse: collapse;
   width: 100%;
