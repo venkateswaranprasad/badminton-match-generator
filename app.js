@@ -6,14 +6,29 @@ let currentStep = 1;
 function showStep(stepNo) {
   currentStep = stepNo;
 
+  // Show only the current step section
   for (let i = 1; i <= 4; i++) {
     const el = document.getElementById(`step${i}`);
     if (el) el.style.display = i === stepNo ? "block" : "none";
   }
 
+  // Update text "Step X of 4"
   const stepText = document.getElementById("currentStepText");
   if (stepText) stepText.textContent = stepNo;
+
+  // Update stepper highlight
+  for (let i = 1; i <= 4; i++) {
+    const el = document.getElementById(`s${i}`);
+    if (!el) continue;
+
+    el.classList.remove("active");
+    el.classList.remove("done");
+
+    if (i < stepNo) el.classList.add("done");
+    if (i === stepNo) el.classList.add("active");
+  }
 }
+
 
 function goBack() {
   if (currentStep > 1) showStep(currentStep - 1);
