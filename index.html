@@ -9,8 +9,37 @@
 
 <h1>🏸 Badminton Match Generator</h1>
 
+<!-- ✅ Stepper / Progress Bar -->
 <div id="stepIndicator">
-  Step <span id="currentStepText">1</span> of 4
+  <div id="stepText">Step <span id="currentStepText">1</span> of 4</div>
+
+  <div class="stepper">
+    <div class="stepper-item active" id="s1">
+      <div class="stepper-dot">1</div>
+      <div class="stepper-label">Setup</div>
+    </div>
+
+    <div class="stepper-line"></div>
+
+    <div class="stepper-item" id="s2">
+      <div class="stepper-dot">2</div>
+      <div class="stepper-label">Players</div>
+    </div>
+
+    <div class="stepper-line"></div>
+
+    <div class="stepper-item" id="s3">
+      <div class="stepper-dot">3</div>
+      <div class="stepper-label">Schedule</div>
+    </div>
+
+    <div class="stepper-line"></div>
+
+    <div class="stepper-item" id="s4">
+      <div class="stepper-dot">4</div>
+      <div class="stepper-label">Play</div>
+    </div>
+  </div>
 </div>
 
 <!-- ================= STEP 1 : SETUP ================= -->
@@ -20,8 +49,8 @@
   <label>Group Name</label><br />
   <input type="text" id="clubName" /><br /><br />
 
-  <button onclick="checkGroupHistory()">Fetch Group</button>
-  <button onclick="resetGroupHistory()">Reset Group History</button>
+  <button class="secondary" onclick="checkGroupHistory()">📂 Fetch Group</button>
+  <button class="danger" onclick="resetGroupHistory()">🧹 Reset Group History</button>
 
   <p id="historyMessage"></p>
   <div id="historySection" style="display:none;">
@@ -40,7 +69,7 @@
   <input type="number" id="matchesPerPlayer" min="1" value="1" /><br /><br />
 
   <details>
-    <summary>Advanced Settings</summary>
+    <summary><strong>Advanced Settings</strong></summary>
     <br />
 
     <label>Seed</label><br />
@@ -51,7 +80,7 @@
   </details>
 
   <br />
-  <button onclick="goNextFromSetup()">Next</button>
+  <button onclick="goNextFromSetup()">➡️ Next</button>
 
   <p class="note">
     ⚠️ Note: Currently, only <strong>doubles matches (2 vs 2)</strong> are supported.
@@ -71,11 +100,11 @@
       <!-- IMPORTANT: app.js expects this id -->
       <div id="playersPanel"></div>
 
-      <button type="button" onclick="addNewPlayerRow()">Add New Player</button>
+      <button type="button" onclick="addNewPlayerRow()">➕ Add New Player</button>
 
       <!-- IMPORTANT: app.js expects these ids -->
       <button type="button" id="managePlayersBtn" onclick="toggleManagePlayers()">
-        Manage Players
+        🛠️ Manage Players
       </button>
       <span id="manageModeText" style="margin-left:10px;"></span>
     </div>
@@ -98,10 +127,10 @@
 
   <p id="teamAssignmentMessage"></p>
 
-  <button onclick="goBack()">Back</button>
+  <button onclick="goBack()">⬅️ Back</button>
 
   <!-- IMPORTANT: function name updated -->
-  <button onclick="goNextFromPlayersTeams()">Generate Schedule</button>
+  <button onclick="goNextFromPlayersTeams()">📅 Generate Schedule</button>
 </section>
 
 <!-- ================= STEP 3 : SCHEDULE ================= -->
@@ -110,9 +139,9 @@
 
   <div id="matchResults"></div>
 
-  <button onclick="goBack()">Back</button>
-  <button onclick="regenerateMatches()">Re-generate</button>
-  <button onclick="goNextFromSchedule()">Let’s Play</button>
+  <button onclick="goBack()">⬅️ Back</button>
+  <button onclick="regenerateMatches()">🔄 Re-generate</button>
+  <button onclick="goNextFromSchedule()">🎮 Let’s Play</button>
 </section>
 
 <!-- ================= STEP 4 : PLAY ================= -->
@@ -121,8 +150,8 @@
 
   <div id="playMatchesGrid"></div>
 
-  <button onclick="goBack()">Back</button>
-  <button onclick="concludePlay()">Conclude Play</button>
+  <button onclick="goBack()">⬅️ Back</button>
+  <button onclick="concludePlay()">🏁 Conclude Play</button>
 
   <section id="finalSummarySection" style="display:none;">
     <h2>Final Result</h2>
@@ -137,12 +166,12 @@
     <h3>Player of the Tournament</h3>
     <div id="playerOfTournament"></div>
 
-    <button onclick="saveResults()">Save Results</button>
-    <button onclick="resetAll()">Start New Tournament</button>
+    <button onclick="saveResults()">💾 Save Results</button>
+    <button onclick="resetAll()">🏠 Start New Tournament</button>
   </section>
 </section>
 
 <!-- Bump version when needed to avoid cache -->
-<script src="app.js?v=6"></script>
+<script src="app.js?v=7"></script>
 </body>
 </html>
