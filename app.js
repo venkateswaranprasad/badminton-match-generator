@@ -126,7 +126,6 @@ function mulberry32(seed) {
  * STEP 1 -> STEP 2
  ***********************/
 function goNextFromSetup() {
-  alert("Next clicked ✅");
   const nameInput = document.getElementById("clubName").value;
   groupDisplayName = (nameInput || "").trim();
 
