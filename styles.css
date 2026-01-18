@@ -1,58 +1,157 @@
+/* ===== Base ===== */
 body {
+  margin: 0;
   font-family: Arial, sans-serif;
-  margin: 30px;
+  background: linear-gradient(135deg, #f5faff, #f0fff8);
+  min-height: 100vh;
+  padding: 30px;
+  color: #222;
 }
 
-input, select, button {
-  margin: 5px 0;
-  padding: 6px;
+h1 {
+  text-align: center;
+  margin-bottom: 15px;
 }
 
-.player-row {
-  margin-bottom: 8px;
+h2 {
+  margin-top: 0;
 }
+
 .note {
-  margin-top: 10px;
-  font-size: 14px;
-  color: #555;
-  background: #f9f9f9;
-  padding: 8px;
-  border-left: 4px solid #ffa500;
-}
-
-#teamMessage {
-  margin-top: 10px;
-  font-weight: bold;
-}
-
-#matchResults div {
-  margin-bottom: 10px;
-}
-
-#playMatchesGrid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 14px;
-  margin-top: 15px;
-}
-
-.play-card {
-  border: 1px solid #ddd;
-  padding: 12px;
+  background: #fff7e6;
+  border-left: 5px solid #f4b400;
+  padding: 10px;
   border-radius: 8px;
 }
 
-.play-row {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-  margin-top: 8px;
+/* ===== Step Indicator ===== */
+#stepIndicator {
+  text-align: center;
+  font-size: 16px;
+  color: #444;
+  margin-bottom: 25px;
 }
 
-.score-input {
-  width: 60px;
+/* ===== Wizard Card ===== */
+.step-card {
+  max-width: 950px;
+  margin: 0 auto 20px auto;
+  background: rgba(255, 255, 255, 0.95);
+  border-radius: 16px;
+  padding: 22px;
+  box-shadow: 0 12px 30px rgba(0,0,0,0.08);
+  border: 1px solid rgba(0,0,0,0.06);
 }
 
-.winner {
+/* ===== Inputs ===== */
+input[type="text"],
+input[type="number"],
+select {
+  padding: 10px;
+  border-radius: 10px;
+  border: 1px solid #ccc;
+  outline: none;
+  font-size: 14px;
+  margin-top: 6px;
+}
+
+input[type="text"]:focus,
+input[type="number"]:focus,
+select:focus {
+  border-color: #4a90e2;
+  box-shadow: 0 0 0 3px rgba(74, 144, 226, 0.2);
+}
+
+/* ===== Buttons ===== */
+button {
+  padding: 10px 16px;
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
   font-weight: bold;
+  font-size: 14px;
+  transition: 0.2s ease;
+  margin: 5px 5px 5px 0;
+}
+
+button:hover {
+  transform: translateY(-1px);
+}
+
+button:active {
+  transform: translateY(0px);
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Primary button */
+button {
+  background: #4a90e2;
+  color: white;
+}
+
+button:hover {
+  background: #357bd8;
+}
+
+/* Secondary button style (optional) */
+button.secondary {
+  background: #e6e6e6;
+  color: #222;
+}
+
+button.secondary:hover {
+  background: #d6d6d6;
+}
+
+/* Danger button style */
+button.danger {
+  background: #e74c3c;
+  color: white;
+}
+
+button.danger:hover {
+  background: #cf3f31;
+}
+
+/* ===== Panels inside Step 2 ===== */
+#playersPanel, #teamAssignmentPanel {
+  max-height: 420px;
+  overflow-y: auto;
+  padding-right: 6px;
+}
+
+/* Player rows */
+.player-row {
+  margin-bottom: 10px;
+}
+
+/* Match cards in Play step */
+#playMatchesGrid > div {
+  background: white;
+  border-radius: 14px;
+  box-shadow: 0 6px 14px rgba(0,0,0,0.06);
+}
+
+/* Final result tables */
+table {
+  border-collapse: collapse;
+  width: 100%;
+  margin-top: 10px;
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+th {
+  background: #4a90e2;
+  color: white;
+  text-align: left;
+}
+
+td, th {
+  padding: 10px;
+  border: 1px solid #ddd;
 }
