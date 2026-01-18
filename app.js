@@ -4,13 +4,13 @@
 let players = [];
 let teamA = [];
 let teamB = [];
+let scheduledMatches = []; // ✅ store matches so "Let's Play" can use them
 
 /***********************
  * SEED + RANDOM HELPERS
  ***********************/
 function hashSeedToInt(seedStr) {
-  // Simple deterministic string hash to 32-bit integer
-  let h = 2166136261; // FNV-like basis
+  let h = 2166136261;
   for (let i = 0; i < seedStr.length; i++) {
     h ^= seedStr.charCodeAt(i);
     h = Math.imul(h, 16777619);
@@ -19,7 +19,6 @@ function hashSeedToInt(seedStr) {
 }
 
 function mulberry32(seed) {
-  // Deterministic PRNG generator
   return function () {
     let t = (seed += 0x6D2B79F5);
     t = Math.imul(t ^ (t >>> 15), t | 1);
@@ -29,27 +28,16 @@ function mulberry32(seed) {
 }
 
 function getRng() {
-  const seedInputEl = document.getElementById("seedInput");
-  const seedStr = seedInputEl ? seedInputEl.value.trim() : "";
-
-  if (!seedStr) {
-    // No seed => truly random each time
-    return Math.random;
-  }
-
-  const seedInt = hashSeedToInt(seedStr);
-  return mulberry32(seedInt);
+  const seedStr = (document.getElementById("seedInput")?.value || "").trim();
+  if (!seedStr) return Math.random;
+  return mulberry32(hashSeedToInt(seedStr));
 }
 
 function getRandomnessLevel() {
   const el = document.getElementById("randomnessLevel");
-  if (!el) return 30;
-
-  let val = Number(el.value);
+  let val = el ? Number(el.value) : 30;
   if (Number.isNaN(val)) val = 30;
-  if (val < 0) val = 0;
-  if (val > 100) val = 100;
-  return val;
+  return Math.max(0, Math.min(100, val));
 }
 
 function shuffleArray(arr, rngFn) {
@@ -104,6 +92,7 @@ function generateMatches() {
   players = [];
   teamA = [];
   teamB = [];
+  scheduledMatches = [];
 
   const count = Number(document.getElementById("playerCount").value);
 
@@ -153,6 +142,7 @@ function showTeamAssignment() {
 function generateMatchesFromTeams() {
   teamA = [];
   teamB = [];
+  scheduledMatches = [];
 
   const matchesPerPlayer = Number(document.getElementById("matchesPerPlayer").value);
   if (!matchesPerPlayer || matchesPerPlayer < 1) {
@@ -162,17 +152,12 @@ function generateMatchesFromTeams() {
 
   for (let i = 0; i < players.length; i++) {
     const selected = document.querySelector(`input[name="team${i}"]:checked`);
-
     if (!selected) {
       setMessage("Please assign every player to a team.");
       return;
     }
-
-    if (selected.value === "A") {
-      teamA.push(players[i]);
-    } else {
-      teamB.push(players[i]);
-    }
+    if (selected.value === "A") teamA.push(players[i]);
+    else teamB.push(players[i]);
   }
 
   if (teamA.length < 2 || teamB.length < 2) {
@@ -183,101 +168,31 @@ function generateMatchesFromTeams() {
   const totalPlayers = teamA.length + teamB.length;
   const totalMatchesNeeded = Math.ceil((totalPlayers * matchesPerPlayer) / 4);
 
-  const seedStr = (document.getElementById("seedInput")?.value || "").trim();
-  const randomnessLevel = getRandomnessLevel();
-
   setMessage(
     `Teams confirmed ✔️ Team A: ${teamA.length} players, Team B: ${teamB.length} players.
-Matches per player: ${matchesPerPlayer}. Total matches scheduled: ${totalMatchesNeeded}.
-Seed: ${seedStr ? seedStr : "None"} | Randomness: ${randomnessLevel}`
+Matches per player: ${matchesPerPlayer}. Total matches scheduled: ${totalMatchesNeeded}`
   );
 
   scheduleMatchesSmart(totalMatchesNeeded, matchesPerPlayer);
-}
 
-/***********************
- * RE-GENERATE (keeps teams)
- ***********************/
-function regenerateMatches() {
-  const matchesPerPlayer = Number(document.getElementById("matchesPerPlayer").value);
-
-  if (!matchesPerPlayer || matchesPerPlayer < 1) {
-    setMessage("Please enter a valid matches per player value.");
-    return;
-  }
-
-  if (teamA.length < 2 || teamB.length < 2) {
-    setMessage("Please ensure both Team A and Team B have at least 2 players.");
-    return;
-  }
-
-  const totalPlayers = teamA.length + teamB.length;
-  const totalMatchesNeeded = Math.ceil((totalPlayers * matchesPerPlayer) / 4);
-
-  scheduleMatchesSmart(totalMatchesNeeded, matchesPerPlayer);
-
-  const seedStr = (document.getElementById("seedInput")?.value || "").trim();
-  const randomnessLevel = getRandomnessLevel();
-
-  setMessage(
-    `Matches re-generated ✔️
-Seed: ${seedStr ? seedStr : "None"} | Randomness: ${randomnessLevel}`
-  );
-}
-
-/***********************
- * RESET EVERYTHING
- ***********************/
-function resetAll() {
-  document.getElementById("clubName").value = "";
-  document.getElementById("playerCount").value = "";
-  document.getElementById("matchesPerPlayer").value = 1;
-
-  const seedInputEl = document.getElementById("seedInput");
-  if (seedInputEl) seedInputEl.value = "";
-
-  const randomEl = document.getElementById("randomnessLevel");
-  if (randomEl) randomEl.value = 30;
-
-  document.getElementById("playersSection").innerHTML = "";
-  document.getElementById("generateBtn").style.display = "none";
-
-  document.getElementById("teamAssignmentContainer").innerHTML = "";
-  document.getElementById("teamAssignmentMessage").textContent = "";
-  document.getElementById("teamAssignmentSection").style.display = "none";
-
-  document.getElementById("matchResults").innerHTML = "";
-  document.getElementById("matchSection").style.display = "none";
-
-  document.getElementById("playerStats").innerHTML = "";
-  document.getElementById("statsSection").style.display = "none";
-
-  players = [];
-  teamA = [];
-  teamB = [];
+  // Hide play section until "Let's Play" clicked
+  document.getElementById("playSection").style.display = "none";
 }
 
 /***********************
  * SMART MATCH SCHEDULING
- * - Balance playtime
- * - Reduce repeated pairs (best effort)
- * - Randomness + seed support
  ***********************/
 function scheduleMatchesSmart(matchCount, targetMatchesPerPlayer) {
   const resultsDiv = document.getElementById("matchResults");
   resultsDiv.innerHTML = "";
 
   const rng = getRng();
-  const randomnessLevel = getRandomnessLevel(); // 0..100
+  const randomnessLevel = getRandomnessLevel();
 
-  // ✅ Shuffle team order slightly (more shuffle at higher randomness)
-  // If randomnessLevel is 0, keep teams in order as much as possible.
   const teamAShuffled = [...teamA];
   const teamBShuffled = [...teamB];
 
   if (randomnessLevel > 0) {
-    // Shuffle intensity based on randomness
-    // We'll do 1 to 3 shuffles depending on level
     const shuffleTimes = 1 + Math.floor((randomnessLevel / 100) * 2);
     for (let i = 0; i < shuffleTimes; i++) {
       shuffleArray(teamAShuffled, rng);
@@ -285,71 +200,44 @@ function scheduleMatchesSmart(matchCount, targetMatchesPerPlayer) {
     }
   }
 
-  // Init play count maps
   const playedCount = {};
-  [...teamAShuffled, ...teamBShuffled].forEach(p => {
-    playedCount[p.name] = 0;
-  });
+  [...teamAShuffled, ...teamBShuffled].forEach(p => (playedCount[p.name] = 0));
 
-  // Track pair repeats inside each team
   const pairCountA = {};
   const pairCountB = {};
 
   function pairKey(n1, n2) {
     return [n1, n2].sort().join("|");
   }
-
-  function getPairCount(pairMap, n1, n2) {
-    const key = pairKey(n1, n2);
-    return pairMap[key] || 0;
+  function getPairCount(map, n1, n2) {
+    return map[pairKey(n1, n2)] || 0;
+  }
+  function incPairCount(map, n1, n2) {
+    const k = pairKey(n1, n2);
+    map[k] = (map[k] || 0) + 1;
   }
 
-  function incPairCount(pairMap, n1, n2) {
-    const key = pairKey(n1, n2);
-    pairMap[key] = (pairMap[key] || 0) + 1;
-  }
-
-  // Choose 2 players from a team:
-  // - mostly choose least played (balance)
-  // - with randomness, allow more variety using shuffle/tie breaks
   function chooseTwo(team, pairMap) {
     const pool = [...team];
+    if (randomnessLevel > 0) shuffleArray(pool, rng);
 
-    // Add randomness: shuffle pool before sorting
-    // Higher randomness => more shuffle impact
-    if (randomnessLevel > 0) {
-      shuffleArray(pool, rng);
-    }
-
-    // Sort by least matches played (always)
     pool.sort((p1, p2) => playedCount[p1.name] - playedCount[p2.name]);
 
     let bestPair = null;
     let bestScore = Infinity;
 
-    // How many top candidates to check:
-    // randomness 0 => small tight subset
-    // randomness 100 => larger subset, more variety
     const limit = Math.min(pool.length, 2 + Math.floor((randomnessLevel / 100) * 6));
     const repeatPenalty = 2 + Math.floor(((100 - randomnessLevel) / 100) * 6);
-    // When randomness is low, repeat penalty is higher (avoid repeats strongly)
-    // When randomness is high, repeat penalty is lower (allow more randomness)
 
     for (let i = 0; i < limit; i++) {
       for (let j = i + 1; j < limit; j++) {
         const p1 = pool[i];
         const p2 = pool[j];
-
         const repeat = getPairCount(pairMap, p1.name, p2.name);
 
-        // Score: prioritize fairness (played count)
-        // Repeat penalty changes with randomness
         const score =
-          playedCount[p1.name] +
-          playedCount[p2.name] +
-          repeat * repeatPenalty;
+          playedCount[p1.name] + playedCount[p2.name] + repeat * repeatPenalty;
 
-        // Tiny randomness tie-break so it doesn't always pick the same score
         const jitter = (randomnessLevel / 100) * rng() * 0.5;
         const finalScore = score + jitter;
 
@@ -360,26 +248,21 @@ function scheduleMatchesSmart(matchCount, targetMatchesPerPlayer) {
       }
     }
 
-    if (!bestPair) {
-      bestPair = [pool[0], pool[1]];
-    }
-
+    if (!bestPair) bestPair = [pool[0], pool[1]];
     return bestPair;
   }
 
-  const scheduledMatches = [];
+  scheduledMatches = [];
 
   for (let m = 1; m <= matchCount; m++) {
     const [a1, a2] = chooseTwo(teamAShuffled, pairCountA);
     const [b1, b2] = chooseTwo(teamBShuffled, pairCountB);
 
-    // Update match play counts
     playedCount[a1.name]++;
     playedCount[a2.name]++;
     playedCount[b1.name]++;
     playedCount[b2.name]++;
 
-    // Update pair counts
     incPairCount(pairCountA, a1.name, a2.name);
     incPairCount(pairCountB, b1.name, b2.name);
 
@@ -390,7 +273,6 @@ function scheduleMatchesSmart(matchCount, targetMatchesPerPlayer) {
     });
   }
 
-  // Render matches
   scheduledMatches.forEach(match => {
     resultsDiv.innerHTML += `
       <div>
@@ -403,13 +285,21 @@ function scheduleMatchesSmart(matchCount, targetMatchesPerPlayer) {
   });
 
   document.getElementById("matchSection").style.display = "block";
-  renderStats(playedCount, targetMatchesPerPlayer);
+  renderStatsFromSchedule(targetMatchesPerPlayer);
 }
 
 /***********************
- * PLAYER STATS DISPLAY
+ * STATS FROM CURRENT SCHEDULE
  ***********************/
-function renderStats(playedCount, targetMatchesPerPlayer) {
+function renderStatsFromSchedule(targetMatchesPerPlayer) {
+  const playedCount = {};
+  [...teamA, ...teamB].forEach(p => (playedCount[p.name] = 0));
+
+  scheduledMatches.forEach(m => {
+    m.teamA.forEach(n => (playedCount[n] = (playedCount[n] || 0) + 1));
+    m.teamB.forEach(n => (playedCount[n] = (playedCount[n] || 0) + 1));
+  });
+
   const statsDiv = document.getElementById("playerStats");
   statsDiv.innerHTML = "";
 
@@ -417,7 +307,6 @@ function renderStats(playedCount, targetMatchesPerPlayer) {
 
   allPlayers.forEach(name => {
     const played = playedCount[name] || 0;
-
     statsDiv.innerHTML += `
       <div>
         <strong>${name}</strong> — Matches Played: ${played} / Target: ${targetMatchesPerPlayer}
@@ -426,6 +315,107 @@ function renderStats(playedCount, targetMatchesPerPlayer) {
   });
 
   document.getElementById("statsSection").style.display = "block";
+}
+
+/***********************
+ * LET'S PLAY UI + SAVE RESULTS
+ ***********************/
+function letsPlay() {
+  if (!scheduledMatches || scheduledMatches.length === 0) {
+    alert("Please generate matches first.");
+    return;
+  }
+
+  const grid = document.getElementById("playMatchesGrid");
+  grid.innerHTML = "";
+
+  scheduledMatches.forEach(match => {
+    grid.innerHTML += `
+      <div class="play-card" id="playCard${match.matchNo}">
+        <div><strong>Match ${match.matchNo}</strong></div>
+
+        <div id="teamABox${match.matchNo}">
+          Team A: <span>${match.teamA[0]} + ${match.teamA[1]}</span>
+        </div>
+
+        <div class="play-row">
+          <label>Score A:</label>
+          <input class="score-input" type="number" id="scoreA${match.matchNo}" min="0">
+        </div>
+
+        <div id="teamBBox${match.matchNo}">
+          Team B: <span>${match.teamB[0]} + ${match.teamB[1]}</span>
+        </div>
+
+        <div class="play-row">
+          <label>Score B:</label>
+          <input class="score-input" type="number" id="scoreB${match.matchNo}" min="0">
+        </div>
+
+        <div class="play-row">
+          <button onclick="saveMatchResult(${match.matchNo})">Save</button>
+          <span id="saveMsg${match.matchNo}"></span>
+        </div>
+      </div>
+    `;
+  });
+
+  document.getElementById("playSection").style.display = "block";
+}
+
+function saveMatchResult(matchNo) {
+  const scoreA = Number(document.getElementById(`scoreA${matchNo}`).value);
+  const scoreB = Number(document.getElementById(`scoreB${matchNo}`).value);
+
+  if (Number.isNaN(scoreA) || Number.isNaN(scoreB)) {
+    alert("Please enter both scores.");
+    return;
+  }
+
+  if (scoreA === scoreB) {
+    alert("Draw is not allowed. Please enter a winning score.");
+    return;
+  }
+
+  const match = scheduledMatches.find(m => m.matchNo === matchNo);
+  if (!match) return;
+
+  const winner = scoreA > scoreB ? "A" : "B";
+
+  // Bold winning team
+  const teamABox = document.getElementById(`teamABox${matchNo}`);
+  const teamBBox = document.getElementById(`teamBBox${matchNo}`);
+
+  teamABox.classList.remove("winner");
+  teamBBox.classList.remove("winner");
+
+  if (winner === "A") teamABox.classList.add("winner");
+  else teamBBox.classList.add("winner");
+
+  // Save result to LocalStorage
+  const groupName = (document.getElementById("clubName").value || "").trim() || "Unknown Group";
+
+  const resultObj = {
+    groupName,
+    matchNo,
+    teamA: match.teamA,
+    teamB: match.teamB,
+    scoreA,
+    scoreB,
+    winnerTeam: winner,
+    savedAt: new Date().toISOString()
+  };
+
+  storeMatchResult(resultObj);
+
+  document.getElementById(`saveMsg${matchNo}`).textContent = "✅ Saved";
+}
+
+function storeMatchResult(resultObj) {
+  const key = "badmintonMatchResults";
+  const existing = JSON.parse(localStorage.getItem(key) || "[]");
+  existing.push(resultObj);
+  localStorage.setItem(key, JSON.stringify(existing));
 }
 
 /***********************
