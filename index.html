@@ -9,123 +9,97 @@
 
 <h1>🏸 Badminton Match Generator</h1>
 
-<!-- Step Indicator -->
-<div id="stepIndicator" style="margin-bottom: 20px; font-weight: bold;">
-  Step <span id="currentStepText">1</span> of 5
+<div id="stepIndicator">
+  Step <span id="currentStepText">1</span> of 4
 </div>
 
-<!-- =======================
-     STEP 1: SETUP + HISTORY
-======================= -->
+<!-- ================= STEP 1 : SETUP ================= -->
 <section id="step1" class="step-card">
   <h2>Setup</h2>
 
-  <label>Club / Group Name</label><br>
+  <label>Group Name</label><br>
   <input type="text" id="clubName"><br><br>
 
-  <button type="button" onclick="checkGroupHistory()">Fetch Play History</button>
-  <p id="historyMessage"></p>
+  <button onclick="checkGroupHistory()">Fetch Group</button>
+  <button onclick="resetGroupHistory()">Reset Group History</button>
 
+  <p id="historyMessage"></p>
   <div id="historySection" style="display:none;">
-    <h3>Play History</h3>
     <div id="historyList"></div>
   </div>
 
-  <br>
+  <hr>
 
-  <label>Total Number of Players</label><br>
-  <input type="number" id="playerCount" min="1"><br><br>
+  <label>Total Players (new group only)</label><br>
+  <input type="number" id="playerCount" min="4"><br><br>
 
   <label>Matches per Player</label><br>
   <input type="number" id="matchesPerPlayer" min="1" value="1"><br><br>
 
   <details>
-    <summary><strong>Advanced Settings</strong></summary>
+    <summary>Advanced Settings</summary>
     <br>
+    <label>Seed</label><br>
+    <input type="text" id="seedInput"><br><br>
 
-    <label>Seed (optional)</label><br>
-    <input type="text" id="seedInput" placeholder="Ex: 123 or TestSeed"><br><br>
-
-    <label>Randomness Level (0 to 100)</label><br>
-    <input type="number" id="randomnessLevel" min="0" max="100" value="30"><br><br>
+    <label>Randomness (0–100)</label><br>
+    <input type="number" id="randomnessLevel" value="30" min="0" max="100">
   </details>
 
-  <p class="note">
-    ⚠️ Note: Currently, only <strong>doubles matches (2 vs 2)</strong> are supported.
-  </p>
-
-  <div style="margin-top: 15px;">
-    <button onclick="goNextFromSetup()">Next</button>
-  </div>
+  <br>
+  <button onclick="goNextFromSetup()">Next</button>
 </section>
 
-
-<!-- =======================
-     STEP 2: PLAYERS
-======================= -->
+<!-- ================= STEP 2 : PLAYERS + TEAMS ================= -->
 <section id="step2" class="step-card" style="display:none;">
-  <h2>Players</h2>
+  <h2>Players & Teams</h2>
 
-  <p>Enter player name and dominant hand.</p>
+  <div style="display:flex; gap:20px;">
+    <!-- LEFT : PLAYERS -->
+    <div style="width:50%;">
+      <h3>Group Players</h3>
+      <p><small>✔ Available Today is checked by default</small></p>
 
-  <section id="playersSection"></section>
+      <div id="playersList"></div>
 
-  <div style="margin-top: 15px;">
-    <button onclick="goBack()">Back</button>
-    <button onclick="goNextFromPlayers()">Next</button>
+      <button onclick="addNewPlayer()">Add Player</button>
+      <button onclick="toggleManagePlayers()">Manage Players</button>
+    </div>
+
+    <!-- RIGHT : TEAMS -->
+    <div style="width:50%;">
+      <h3>Team Assignment (Today)</h3>
+      <div id="teamCounts"></div>
+      <div id="teamAssignmentContainer"></div>
+    </div>
   </div>
-</section>
-
-
-<!-- =======================
-     STEP 3: TEAM ASSIGNMENT
-======================= -->
-<section id="step3" class="step-card" style="display:none;">
-  <h2>Assign Players to Teams</h2>
-
-  <div id="teamAssignmentContainer"></div>
 
   <p id="teamAssignmentMessage"></p>
 
-  <div style="margin-top: 15px;">
-    <button onclick="goBack()">Back</button>
-    <button onclick="goNextFromTeams()">Generate Schedule</button>
-  </div>
+  <button onclick="goBack()">Back</button>
+  <button onclick="goNextFromTeams()">Generate Schedule</button>
 </section>
 
-
-<!-- =======================
-     STEP 4: SCHEDULE
-======================= -->
-<section id="step4" class="step-card" style="display:none;">
-  <h2>Scheduled Matches</h2>
+<!-- ================= STEP 3 : SCHEDULE ================= -->
+<section id="step3" class="step-card" style="display:none;">
+  <h2>Schedule</h2>
 
   <div id="matchResults"></div>
 
-  <div style="margin-top: 15px;">
-    <button onclick="goBack()">Back</button>
-    <button onclick="regenerateMatches()">Re-generate</button>
-    <button onclick="goNextFromSchedule()">Let’s Play</button>
-  </div>
+  <button onclick="goBack()">Back</button>
+  <button onclick="regenerateMatches()">Re-generate</button>
+  <button onclick="goNextFromSchedule()">Let’s Play</button>
 </section>
 
-
-<!-- =======================
-     STEP 5: PLAY + FINAL SUMMARY
-======================= -->
-<section id="step5" class="step-card" style="display:none;">
-  <h2>Play & Record Scores</h2>
+<!-- ================= STEP 4 : PLAY ================= -->
+<section id="step4" class="step-card" style="display:none;">
+  <h2>Play</h2>
 
   <div id="playMatchesGrid"></div>
 
-  <div style="margin-top: 15px;">
-    <button onclick="goBack()">Back</button>
-    <button onclick="concludePlay()">Conclude Play</button>
-  </div>
+  <button onclick="goBack()">Back</button>
+  <button onclick="concludePlay()">Conclude Play</button>
 
-  <hr style="margin: 20px 0;">
-
-  <!-- Final Summary -->
   <section id="finalSummarySection" style="display:none;">
     <h2>Final Result</h2>
     <div id="finalHeader"></div>
@@ -139,20 +113,10 @@
     <h3>Player of the Tournament</h3>
     <div id="playerOfTournament"></div>
 
-    <button id="saveResultsBtn" onclick="saveResults()">Save Results</button>
-    <button onclick="resetAll()">Start New Tournament</button>
+    <button onclick="saveResults()">Save Results</button>
   </section>
 </section>
 
-
-<!-- Hidden sections kept for JS compatibility if needed -->
-<section id="teamAssignmentSection" style="display:none;"></section>
-<section id="matchSection" style="display:none;"></section>
-<section id="statsSection" style="display:none;">
-  <h2>Player Stats</h2>
-  <div id="playerStats"></div>
-</section>
-
-<script src="app.js?v=3"></script>
+<script src="app.js?v=4"></script>
 </body>
 </html>
