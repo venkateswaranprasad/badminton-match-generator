@@ -1424,7 +1424,7 @@ function showGroupHistory(key) {
 
     tableHtml += `
       <tr>
-        <td>${new Date(t.savedAt).toLocaleString()}</td>
+        <td>${new Date(t.completedAt || t.savedAt || t.createdAt || "").toLocaleString()}</td>
         <td>${teamAWins}</td>
         <td>${teamBWins}</td>
         <td>
