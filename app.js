@@ -3,6 +3,7 @@
  ***********************/
 let currentStep = 1;
 let addPlayerMode = false;
+let currentTournamentId = null; // ✅ track currently selected/active tournament
 
 function showStep(stepNo) {
   currentStep = stepNo;
@@ -99,6 +100,14 @@ function shuffleArray(arr, rngFn) {
     const j = Math.floor(rngFn() * (i + 1));
     [arr[i], arr[j]] = [arr[j], arr[i]];
   }
+}
+
+function getTodayDateString() {
+  const d = new Date();
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  return `${yyyy}-${mm}-${dd}`;
 }
 
 /***********************
@@ -642,8 +651,16 @@ function goNextFromPlayersTeams() {
   const totalMatchesNeeded = Math.ceil((totalPlayers * matchesPerPlayer) / 4);
 
   scheduleMatchesSmart(teamA, teamB, totalMatchesNeeded);
+  
+  // Default play date = today (user can change)
+  const pd = document.getElementById("playDate");
+  if (pd && !pd.value) {
+    pd.value = getTodayDateString();
+  }
 
-  showStep(3);
+  const msg = document.getElementById("scheduleSaveMsg");
+  if (msg) msg.textContent = ""
+    showStep(3);
 }
 
 /***********************
@@ -768,6 +785,70 @@ scheduledMatches.forEach(match => {
   document.getElementById("playMatchesGrid").innerHTML = "";
 }
 
+function saveSchedule() {
+  const msgEl = document.getElementById("scheduleSaveMsg");
+  if (msgEl) msgEl.textContent = "";
+
+  if (!groupKey) {
+    alert("Group not found. Please start from Setup.");
+    return;
+  }
+
+  if (!scheduledMatches || scheduledMatches.length === 0) {
+    alert("No schedule generated yet.");
+    return;
+  }
+
+  const playDateEl = document.getElementById("playDate");
+  const playDate = (playDateEl?.value || "").trim();
+
+  if (!playDate) {
+    alert("Please select a Tournament Play Date.");
+    return;
+  }
+
+  // Build available/teams snapshot (today)
+  const availablePlayers = groupPlayers.filter(p => availableTodayMap[p.id]);
+  const teamA = availablePlayers.filter(p => teamMap[p.id] === "A").map(p => p.name);
+  const teamB = availablePlayers.filter(p => teamMap[p.id] === "B").map(p => p.name);
+
+  const tournamentRecord = {
+    tournamentId: Date.now(),
+    createdAt: new Date().toISOString(),
+    playDate, // ✅ user selected
+    status: "SCHEDULED", // ✅ draft
+    matchesPerPlayer: getMatchesPerPlayer(),
+    availablePlayers: availablePlayers.map(p => p.name),
+    teamA,
+    teamB,
+    scheduledMatches,
+    matchResults: [] // empty until played
+  };
+
+  const groups = getGroupsStore();
+  const group = groups[groupKey];
+
+  if (!group) {
+    alert("Group not found in storage.");
+    return;
+  }
+
+  group.tournaments = group.tournaments || [];
+  group.tournaments.push(tournamentRecord);
+
+  groups[groupKey] = group;
+  setGroupsStore(groups);
+
+  currentTournamentId = tournamentRecord.tournamentId;
+
+  if (msgEl) {
+    msgEl.textContent = `✅ Schedule saved for ${playDate}`;
+    msgEl.style.color = "green";
+  }
+
+  alert("Schedule saved ✅");
+}
+
 function regenerateMatches() {
   // Build current available players + teams again from maps
   const availablePlayers = groupPlayers.filter(p => availableTodayMap[p.id]);
@@ -787,6 +868,23 @@ function regenerateMatches() {
 }
 
 function goNextFromSchedule() {
+  // If user didn't save schedule, allow play anyway (but it won't resume later)
+  // If saved schedule exists, mark it IN_PROGRESS
+
+  if (currentTournamentId) {
+    const groups = getGroupsStore();
+    const group = groups[groupKey];
+
+    if (group && group.tournaments) {
+      const t = group.tournaments.find(x => x.tournamentId === currentTournamentId);
+      if (t) {
+        t.status = "IN_PROGRESS";
+        groups[groupKey] = group;
+        setGroupsStore(groups);
+      }
+    }
+  }
+
   letsPlay();
   showStep(4);
 }
@@ -1022,7 +1120,30 @@ function saveResults() {
   }
 
   group.tournaments = group.tournaments || [];
-  group.tournaments.push(tournamentRecord);
+
+  if (currentTournamentId) {
+  // ✅ Update existing saved schedule tournament
+    const existingTournament = group.tournaments.find(t => t.tournamentId === currentTournamentId);
+
+    if (existingTournament) {
+      existingTournament.status = "COMPLETED";
+      existingTournament.matchResults = groupResults;
+      existingTournament.completedAt = new Date().toISOString();
+      existingTournament.scheduledMatches = scheduledMatches;
+      existingTournament.availablePlayers = availablePlayers.map(p => p.name);
+      existingTournament.teamA = teamA;
+      existingTournament.teamB = teamB;
+      existingTournament.matchesPerPlayer = getMatchesPerPlayer();
+    } else {
+      // fallback
+      tournamentRecord.status = "COMPLETED";
+      group.tournaments.push(tournamentRecord);
+    }
+  } else {
+    // ✅ If schedule was never saved, store as completed tournament anyway
+    tournamentRecord.status = "COMPLETED";
+    group.tournaments.push(tournamentRecord);
+  }
 
   groups[groupKey] = group;
   setGroupsStore(groups);
