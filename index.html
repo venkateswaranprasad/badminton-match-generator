@@ -42,6 +42,10 @@
   </div>
 </div>
 
+<div class="topbar">
+  <button type="button" class="secondary" onclick="toggleDarkMode()">🌙 Dark Mode</button>
+</div>
+
 <!-- ================= STEP 1 : SETUP ================= -->
 <section id="step1" class="step-card">
   <h2>Setup</h2>
@@ -172,11 +176,13 @@
 <section id="step3" class="step-card" style="display:none;">
   <h2>Schedule</h2>
 
-  <div id="matchResults"></div>
+  <div id="matchResults" class="schedule-grid"></div>
 
-  <button onclick="goBack()">⬅️ Back</button>
-  <button onclick="regenerateMatches()">🔄 Re-generate</button>
-  <button onclick="goNextFromSchedule()">🎮 Let’s Play</button>
+  <div style="margin-top: 15px;">
+    <button onclick="goBack()">⬅️ Back</button>
+    <button onclick="regenerateMatches()">🔄 Re-generate</button>
+    <button onclick="goNextFromSchedule()">🎮 Let’s Play</button>
+  </div>
 </section>
 
 <!-- ================= STEP 4 : PLAY ================= -->
