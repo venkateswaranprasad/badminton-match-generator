@@ -1184,11 +1184,17 @@ function checkGroupHistory() {
     return;
   }
 
+  const total = (groups[key].tournaments || []).length;
+  const completed = (groups[key].tournaments || []).filter(t => t.status === "COMPLETED").length;
+  const upcoming = total - completed;
+  
   document.getElementById("historyMessage").textContent =
-    `Found ${(groups[key].tournaments || []).length} saved tournament(s).`;
+    `Found ${total} tournament(s): ${upcoming} upcoming/saved schedule(s), ${completed} completed.`;
 
   // Existing group -> hide new group count field
   document.getElementById("newGroupSetup").style.display = "none";
+
+  document.getElementById("historySection").style.display = "block";
 
   showGroupHistory(key);
   // Default view = Tournament Stats
