@@ -1440,15 +1440,11 @@ function toggleDarkMode() {
   localStorage.setItem("badmintonDarkMode", isDark ? "1" : "0");
 }
 
-// Load preference on startup
-window.addEventListener("load", () => {
-  const saved = localStorage.getItem("badmintonDarkMode");
-  if (saved === "1") document.body.classList.add("dark");
-});
-
 /***********************
  * INITIAL LOAD
  ***********************/
 window.addEventListener("load", () => {
+  const saved = localStorage.getItem("badmintonDarkMode");
+  if (saved === "1") document.body.classList.add("dark");
   showStep(1);
 });
