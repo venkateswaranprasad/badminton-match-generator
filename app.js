@@ -36,6 +36,17 @@ function goBack() {
   if (currentStep > 1) showStep(currentStep - 1);
 }
 
+function goHome() {
+  showStep(1);
+
+  // Optional: refresh the group history automatically
+  // so Upcoming schedules list shows immediately
+  if (groupKey) {
+    checkGroupHistory();
+  }
+}
+
+
 /***********************
  * STORAGE KEYS
  ***********************/
@@ -660,6 +671,10 @@ function goNextFromPlayersTeams() {
 
   const msg = document.getElementById("scheduleSaveMsg");
   if (msg) msg.textContent = ""
+  
+  const homeBtn = document.getElementById("homeBtnStep3");
+  if (homeBtn) homeBtn.disabled = true;
+
   showStep(3);
 }
 
@@ -847,6 +862,10 @@ function saveSchedule() {
   }
 
   alert("Schedule saved ✅");
+
+  const homeBtn = document.getElementById("homeBtnStep3");
+  if (homeBtn) homeBtn.disabled = false;
+
 }
 
 function regenerateMatches() {
