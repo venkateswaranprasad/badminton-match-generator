@@ -429,15 +429,22 @@ input[type="radio"] {
     white-space: nowrap;
   }
 
-  /* ===== Topbar ===== */
-.topbar {
-  max-width: 950px;
-  margin: 0 auto 10px auto;
-  display: flex;
-  justify-content: flex-end;
+  .stepper-line {
+    width: 30px;
+  }
 }
 
-/* ===== Schedule Cards (Step 3) ===== */
+.topbar {
+  position: fixed;
+  top: 16px;
+  right: 16px;
+  z-index: 9999;
+}
+
+.topbar button {
+  width: auto;
+}
+
 .schedule-grid {
   display: grid;
   grid-template-columns: 1fr;
@@ -450,7 +457,6 @@ input[type="radio"] {
   }
 }
 
-/* Card style for schedule items */
 .schedule-card {
   background: white;
   border-radius: 14px;
@@ -459,7 +465,7 @@ input[type="radio"] {
   box-shadow: 0 6px 14px rgba(0,0,0,0.06);
 }
 
-/* Team badges */
+/* Badges */
 .badge {
   display: inline-block;
   padding: 4px 10px;
@@ -481,7 +487,6 @@ input[type="radio"] {
   border: 1px solid rgba(46, 204, 113, 0.25);
 }
 
-/* "VS" separator */
 .vs {
   display: inline-block;
   font-weight: bold;
@@ -489,7 +494,6 @@ input[type="radio"] {
   color: #666;
 }
 
-/* ===== Dark Mode ===== */
 body.dark {
   background: linear-gradient(135deg, #0f172a, #0b1220);
   color: #e5e7eb;
@@ -520,36 +524,9 @@ body.dark #playMatchesGrid > div {
   border: 1px solid rgba(255,255,255,0.08);
 }
 
-body.dark table {
-  border-color: rgba(255,255,255,0.15);
-}
-
-body.dark th {
-  background: rgba(74, 144, 226, 0.35);
-}
-
-body.dark td, body.dark th {
-  border: 1px solid rgba(255,255,255,0.12);
-}
-
 body.dark .note {
   background: rgba(245, 158, 11, 0.15);
   border-left-color: rgba(245, 158, 11, 0.8);
 }
 
 
-  .stepper-line {
-    width: 30px;
-  }
-}
-
-.topbar {
-  position: fixed;
-  top: 16px;
-  right: 16px;
-  z-index: 9999;
-}
-
-.topbar button {
-  width: auto; /* prevents full width on mobile */
-}
