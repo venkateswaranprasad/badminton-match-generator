@@ -1434,7 +1434,7 @@ function resetAll() {
 
 function toggleDarkMode() {
   document.body.classList.toggle("dark");
-
+  alert("Dark class = " + document.body.classList.contains("dark"));
   // Save preference
   const isDark = document.body.classList.contains("dark");
   localStorage.setItem("badmintonDarkMode", isDark ? "1" : "0");
