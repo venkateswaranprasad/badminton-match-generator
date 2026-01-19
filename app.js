@@ -660,7 +660,7 @@ function goNextFromPlayersTeams() {
 
   const msg = document.getElementById("scheduleSaveMsg");
   if (msg) msg.textContent = ""
-    showStep(3);
+  showStep(3);
 }
 
 /***********************
