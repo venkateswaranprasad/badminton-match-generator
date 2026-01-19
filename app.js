@@ -1193,12 +1193,179 @@ function checkGroupHistory() {
   showGroupHistory(key);
   // Default view = Tournament Stats
   showTournamentStats();
+  showUpcomingTournaments(key);
+}
 
+function showUpcomingTournaments(key) {
+  const groups = getGroupsStore();
+  const group = groups[key];
+
+  const sec = document.getElementById("upcomingSection");
+  const list = document.getElementById("upcomingList");
+
+  if (!sec || !list) return;
+
+  if (!group || !group.tournaments || group.tournaments.length === 0) {
+    sec.style.display = "none";
+    return;
+  }
+
+  const upcoming = group.tournaments
+    .filter(t => t.status === "SCHEDULED" || t.status === "IN_PROGRESS")
+    .sort((a, b) => (a.playDate || "").localeCompare(b.playDate || ""));
+
+  if (upcoming.length === 0) {
+    sec.style.display = "none";
+    return;
+  }
+
+  let html = `
+    <table border="1" cellpadding="6">
+      <tr>
+        <th>Play Date</th>
+        <th>Created At</th>
+        <th>Status</th>
+        <th>Action</th>
+      </tr>
+  `;
+
+  upcoming.forEach(t => {
+    html += `
+      <tr>
+        <td><strong>${t.playDate || "-"}</strong></td>
+        <td>${t.createdAt ? new Date(t.createdAt).toLocaleString() : "-"}</td>
+        <td>${t.status}</td>
+        <td>
+          <button onclick="startPlayFromSavedTournament('${key}', ${t.tournamentId})">
+            ▶ Start Play
+          </button>
+          <button class="danger" onclick="deleteSavedTournament('${key}', ${t.tournamentId})">
+            🗑 Delete
+          </button>
+        </td>
+      </tr>
+    `;
+  });
+
+  html += `</table>`;
+
+  list.innerHTML = html;
+  sec.style.display = "block";
+}
+
+function deleteSavedTournament(key, tournamentId) {
+  const groups = getGroupsStore();
+  const group = groups[key];
+
+  if (!group) return;
+
+  const t = (group.tournaments || []).find(x => x.tournamentId === tournamentId);
+  if (!t) return;
+
+  const ok = confirm(
+    `Delete saved schedule?\nPlay Date: ${t.playDate || "-"}\nStatus: ${t.status}`
+  );
+  if (!ok) return;
+
+  group.tournaments = (group.tournaments || []).filter(x => x.tournamentId !== tournamentId);
+  groups[key] = group;
+  setGroupsStore(groups);
+
+  alert("Saved schedule deleted ✅");
+
+  // Refresh UI
+  showUpcomingTournaments(key);
+  showGroupHistory(key);
+  showTournamentStats();
+}
+
+function startPlayFromSavedTournament(key, tournamentId) {
+  const groups = getGroupsStore();
+  const group = groups[key];
+
+  if (!group) {
+    alert("Group not found.");
+    return;
+  }
+
+  const t = (group.tournaments || []).find(x => x.tournamentId === tournamentId);
+  if (!t) {
+    alert("Tournament not found.");
+    return;
+  }
+
+  if (!t.scheduledMatches || t.scheduledMatches.length === 0) {
+    alert("No schedule found in this tournament.");
+    return;
+  }
+
+  // Load group context
+  groupKey = key;
+  groupDisplayName = group.groupName || key;
+  groupPlayers = group.players || [];
+
+  // Restore schedule & tournament id
+  scheduledMatches = t.scheduledMatches;
+  currentTournamentId = t.tournamentId;
+
+  // Set play date in Step 3 UI (optional)
+  const playDateEl = document.getElementById("playDate");
+  if (playDateEl && t.playDate) playDateEl.value = t.playDate;
+
+  // Mark tournament as IN_PROGRESS
+  t.status = "IN_PROGRESS";
+  groups[key] = group;
+  setGroupsStore(groups);
+
+  // Render Schedule step from saved schedule
+  renderSavedScheduleCards();
+
+  // Jump to Step 3 first (user can review) or Step 4 directly
+  showStep(3);
+  alert("Loaded saved schedule ✅ You can now click Let’s Play.");
+}
+
+function renderSavedScheduleCards() {
+  const resultsDiv = document.getElementById("matchResults");
+  if (!resultsDiv) return;
+
+  resultsDiv.innerHTML = "";
+
+  scheduledMatches.forEach(match => {
+    resultsDiv.innerHTML += `
+      <div class="schedule-card">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <strong>Match ${match.matchNo}</strong>
+          <span>
+            <span class="badge badge-a">Team A</span>
+            <span class="vs">VS</span>
+            <span class="badge badge-b">Team B</span>
+          </span>
+        </div>
+
+        <div style="margin-top:10px;">
+          <div><span class="badge badge-a">A</span> ${escapeHtml(match.teamA[0])} + ${escapeHtml(match.teamA[1])}</div>
+          <div style="margin-top:6px;"><span class="badge badge-b">B</span> ${escapeHtml(match.teamB[0])} + ${escapeHtml(match.teamB[1])}</div>
+        </div>
+      </div>
+    `;
+  });
+
+  // Clear final section
+  const finalSection = document.getElementById("finalSummarySection");
+  if (finalSection) finalSection.style.display = "none";
+
+  // Clear play grid
+  const playGrid = document.getElementById("playMatchesGrid");
+  if (playGrid) playGrid.innerHTML = "";
 }
 
 function showGroupHistory(key) {
   const groups = getGroupsStore();
-  const tournaments = (groups[key].tournaments || []).slice().reverse();
+  const tournaments = (groups[key].tournaments || [])
+  .filter(t => t.status === "COMPLETED")
+  .slice()
+  .reverse();
 
   const historyList = document.getElementById("historyList");
   historyList.innerHTML = "";
