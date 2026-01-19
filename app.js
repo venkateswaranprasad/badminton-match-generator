@@ -1177,6 +1177,63 @@ function saveResults() {
   resetAll();
 }
 
+function migrateGroupTournaments(group) {
+  if (!group || !Array.isArray(group.tournaments)) return false;
+
+  let changed = false;
+
+  group.tournaments.forEach(t => {
+    if (!t || typeof t !== "object") return;
+
+    // ✅ Ensure tournamentId exists
+    if (!t.tournamentId) {
+      t.tournamentId = Date.now() + Math.floor(Math.random() * 10000);
+      changed = true;
+    }
+
+    // ✅ createdAt fallback
+    if (!t.createdAt) {
+      if (t.savedAt) t.createdAt = t.savedAt;
+      else t.createdAt = new Date().toISOString();
+      changed = true;
+    }
+
+    // ✅ status fallback
+    if (!t.status) {
+      const hasResults = Array.isArray(t.matchResults) && t.matchResults.length > 0;
+      t.status = hasResults ? "COMPLETED" : "SCHEDULED";
+      changed = true;
+    }
+
+    // ✅ completedAt fallback
+    if (t.status === "COMPLETED" && !t.completedAt) {
+      t.completedAt = t.savedAt || t.createdAt || new Date().toISOString();
+      changed = true;
+    }
+
+    // ✅ matchResults fallback
+    if (!Array.isArray(t.matchResults)) {
+      t.matchResults = [];
+      changed = true;
+    }
+
+    // ✅ scheduledMatches fallback
+    if (!Array.isArray(t.scheduledMatches)) {
+      t.scheduledMatches = [];
+      changed = true;
+    }
+
+    // ✅ playDate fallback (optional)
+    if (!t.playDate) {
+      // leave blank if you don't know it
+      t.playDate = "";
+      changed = true;
+    }
+  });
+
+  return changed;
+}
+
 /***********************
  * Fetch / Reset Group History (Step 1)
  ***********************/
@@ -1203,6 +1260,12 @@ function checkGroupHistory() {
     return;
   }
 
+    // ✅ One-time migration to fix old tournaments (Invalid Date issue)
+  const migrated = migrateGroupTournaments(groups[key]);
+  if (migrated) {
+    groups[key] = groups[key];
+    setGroupsStore(groups);
+  }
   const total = (groups[key].tournaments || []).length;
   const completed = (groups[key].tournaments || []).filter(t => t.status === "COMPLETED").length;
   const upcoming = total - completed;
