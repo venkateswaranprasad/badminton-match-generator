@@ -1802,9 +1802,19 @@ function resetAll() {
   document.getElementById("historySection").style.display = "none";
   document.getElementById("historyList").innerHTML = "";
 
+  // ✅ Clear upcoming schedules section
+  const upcomingSection = document.getElementById("upcomingSection");
+  const upcomingList = document.getElementById("upcomingList");
+  if (upcomingSection) upcomingSection.style.display = "none";
+  if (upcomingList) upcomingList.innerHTML = "";
+  const historySummary = document.getElementById("historySummary");
+  if (historySummary) historySummary.innerHTML = "";
+
   // Show new group setup by default
   document.getElementById("newGroupSetup").style.display = "block";
-
+  groupKey = "";
+  groupDisplayName = "";
+  currentTournamentId = null;
   showStep(1);
 }
 
