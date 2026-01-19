@@ -1467,7 +1467,7 @@ function showGroupHistory(key) {
   let tableHtml = `
     <table border="1" cellpadding="6">
       <tr>
-        <th>Date</th>
+        <th>Completed At</th>
         <th>Team A Wins</th>
         <th>Team B Wins</th>
         <th>Action</th>
