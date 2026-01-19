@@ -740,16 +740,25 @@ function scheduleMatchesSmart(teamAPlayers, teamBPlayers, matchCount) {
     });
   }
 
-  scheduledMatches.forEach(match => {
-    resultsDiv.innerHTML += `
-      <div>
-        <strong>Match ${match.matchNo}</strong><br>
-        Team A: ${escapeHtml(match.teamA[0])} + ${escapeHtml(match.teamA[1])}<br>
-        Team B: ${escapeHtml(match.teamB[0])} + ${escapeHtml(match.teamB[1])}
+scheduledMatches.forEach(match => {
+  resultsDiv.innerHTML += `
+    <div class="schedule-card">
+      <div style="display:flex; justify-content:space-between; align-items:center;">
+        <strong>Match ${match.matchNo}</strong>
+        <span>
+          <span class="badge badge-a">Team A</span>
+          <span class="vs">VS</span>
+          <span class="badge badge-b">Team B</span>
+        </span>
       </div>
-      <hr>
-    `;
-  });
+
+      <div style="margin-top:10px;">
+        <div><span class="badge badge-a">A</span> ${escapeHtml(match.teamA[0])} + ${escapeHtml(match.teamA[1])}</div>
+        <div style="margin-top:6px;"><span class="badge badge-b">B</span> ${escapeHtml(match.teamB[0])} + ${escapeHtml(match.teamB[1])}</div>
+      </div>
+    </div>
+  `;
+});
 
   // Clear any previous final section
   const finalSection = document.getElementById("finalSummarySection");
@@ -1422,6 +1431,20 @@ function resetAll() {
 
   showStep(1);
 }
+
+function toggleDarkMode() {
+  document.body.classList.toggle("dark");
+
+  // Save preference
+  const isDark = document.body.classList.contains("dark");
+  localStorage.setItem("badmintonDarkMode", isDark ? "1" : "0");
+}
+
+// Load preference on startup
+window.addEventListener("load", () => {
+  const saved = localStorage.getItem("badmintonDarkMode");
+  if (saved === "1") document.body.classList.add("dark");
+});
 
 /***********************
  * INITIAL LOAD
