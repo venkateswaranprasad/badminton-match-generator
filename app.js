@@ -1810,6 +1810,12 @@ function resetAll() {
   const historySummary = document.getElementById("historySummary");
   if (historySummary) historySummary.innerHTML = "";
 
+  const msg = document.getElementById("scheduleSaveMsg");
+  if (msg) msg.textContent = "";
+  
+  const playDate = document.getElementById("playDate");
+  if (playDate) playDate.value = "";
+
   // Show new group setup by default
   document.getElementById("newGroupSetup").style.display = "block";
   groupKey = "";
