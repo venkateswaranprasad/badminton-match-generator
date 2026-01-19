@@ -428,6 +428,115 @@ input[type="radio"] {
     white-space: nowrap;
   }
 
+  /* ===== Topbar ===== */
+.topbar {
+  max-width: 950px;
+  margin: 0 auto 10px auto;
+  display: flex;
+  justify-content: flex-end;
+}
+
+/* ===== Schedule Cards (Step 3) ===== */
+.schedule-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+}
+
+@media (min-width: 900px) {
+  .schedule-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+/* Card style for schedule items */
+.schedule-card {
+  background: white;
+  border-radius: 14px;
+  padding: 12px;
+  border: 1px solid #eee;
+  box-shadow: 0 6px 14px rgba(0,0,0,0.06);
+}
+
+/* Team badges */
+.badge {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: bold;
+  margin-right: 8px;
+}
+
+.badge-a {
+  background: rgba(74, 144, 226, 0.15);
+  color: #2f6fbf;
+  border: 1px solid rgba(74, 144, 226, 0.25);
+}
+
+.badge-b {
+  background: rgba(46, 204, 113, 0.15);
+  color: #1f8a4d;
+  border: 1px solid rgba(46, 204, 113, 0.25);
+}
+
+/* "VS" separator */
+.vs {
+  display: inline-block;
+  font-weight: bold;
+  margin: 0 8px;
+  color: #666;
+}
+
+/* ===== Dark Mode ===== */
+body.dark {
+  background: linear-gradient(135deg, #0f172a, #0b1220);
+  color: #e5e7eb;
+}
+
+body.dark .step-card {
+  background: rgba(17, 24, 39, 0.95);
+  border: 1px solid rgba(255,255,255,0.08);
+}
+
+body.dark input,
+body.dark select {
+  background: rgba(255,255,255,0.06);
+  color: #e5e7eb;
+  border: 1px solid rgba(255,255,255,0.15);
+}
+
+body.dark .panel-card,
+body.dark #playersPanel,
+body.dark #teamAssignmentPanel {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255,255,255,0.08);
+}
+
+body.dark .schedule-card,
+body.dark #playMatchesGrid > div {
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.08);
+}
+
+body.dark table {
+  border-color: rgba(255,255,255,0.15);
+}
+
+body.dark th {
+  background: rgba(74, 144, 226, 0.35);
+}
+
+body.dark td, body.dark th {
+  border: 1px solid rgba(255,255,255,0.12);
+}
+
+body.dark .note {
+  background: rgba(245, 158, 11, 0.15);
+  border-left-color: rgba(245, 158, 11, 0.8);
+}
+
+
   .stepper-line {
     width: 30px;
   }
