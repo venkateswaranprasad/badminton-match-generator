@@ -176,13 +176,24 @@
 <section id="step3" class="step-card" style="display:none;">
   <h2>Schedule</h2>
 
+  <div style="margin:10px 0; padding:12px; border:1px solid #eee; border-radius:12px; background:white;">
+    <label><strong>Tournament Play Date</strong></label><br />
+    <input type="date" id="playDate" />
+    <p style="margin:6px 0 0 0; color:#666;">
+      Pick the date when this tournament will be played.
+    </p>
+  </div>
+
   <div id="matchResults" class="schedule-grid"></div>
 
   <div style="margin-top: 15px;">
     <button onclick="goBack()">⬅️ Back</button>
     <button onclick="regenerateMatches()">🔄 Re-generate</button>
+    <button onclick="saveSchedule()">💾 Save Schedule</button>
     <button onclick="goNextFromSchedule()">🎮 Let’s Play</button>
   </div>
+
+  <p id="scheduleSaveMsg" style="margin-top:10px; font-weight:bold;"></p>
 </section>
 
 <!-- ================= STEP 4 : PLAY ================= -->
