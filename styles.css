@@ -529,4 +529,74 @@ body.dark .note {
   border-left-color: rgba(245, 158, 11, 0.8);
 }
 
+/* ================================
+   DARK MODE FIX (DIFF-ONLY PATCH)
+   ================================ */
+
+/* Theme variables */
+:root {
+  --bg-card-fix: #ffffff;
+  --bg-soft-fix: rgba(255,255,255,0.7);
+  --border-soft-fix: #eee;
+  --text-main-fix: #222;
+}
+
+body.dark {
+  --bg-card-fix: rgba(17, 24, 39, 0.95);
+  --bg-soft-fix: rgba(255,255,255,0.05);
+  --border-soft-fix: rgba(255,255,255,0.12);
+  --text-main-fix: #e5e7eb;
+}
+
+/* ----- Cards & panels that were stuck white ----- */
+body.dark .step-card,
+body.dark .panel-card,
+body.dark .schedule-card,
+body.dark #playMatchesGrid > div,
+body.dark #matchResults > div,
+body.dark .add-player-panel,
+body.dark .sticky-counts {
+  background: var(--bg-card-fix) !important;
+  border-color: var(--border-soft-fix) !important;
+  color: var(--text-main-fix);
+}
+
+/* ----- Tables (main issue in screenshot) ----- */
+body.dark table {
+  background: var(--bg-card-fix) !important;
+  color: var(--text-main-fix);
+  border-color: var(--border-soft-fix);
+}
+
+body.dark th {
+  background: #1f3b6f !important;
+  color: #ffffff;
+}
+
+body.dark td {
+  background: transparent !important;
+  border-color: var(--border-soft-fix);
+}
+
+/* ----- Final summary section ----- */
+body.dark #finalSummarySection,
+body.dark #finalSummarySection * {
+  background-color: transparent;
+  color: var(--text-main-fix);
+}
+
+/* ----- Inputs inside dark cards ----- */
+body.dark input,
+body.dark select {
+  background: rgba(255,255,255,0.06);
+  color: var(--text-main-fix);
+  border-color: var(--border-soft-fix);
+}
+
+/* ----- Scroll containers ----- */
+body.dark #playersPanel,
+body.dark #teamAssignmentPanel {
+  background: var(--bg-soft-fix);
+}
+
 
