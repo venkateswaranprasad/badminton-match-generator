@@ -688,82 +688,92 @@ function scheduleMatchesSmart(teamAPlayers, teamBPlayers, matchCount) {
   const rng = getRng();
   const randomnessLevel = getRandomnessLevel();
 
-  const teamAShuffled = [...teamAPlayers];
-  const teamBShuffled = [...teamBPlayers];
-
-  if (randomnessLevel > 0) {
-    const shuffleTimes = 1 + Math.floor((randomnessLevel / 100) * 2);
-    for (let i = 0; i < shuffleTimes; i++) {
-      shuffleArray(teamAShuffled, rng);
-      shuffleArray(teamBShuffled, rng);
-    }
-  }
-
+  // ---- GLOBAL METRICS ----
   const playedCount = {};
-  [...teamAShuffled, ...teamBShuffled].forEach(p => (playedCount[p.name] = 0));
+  const partnerCount = {};
+  const opponentCount = {};
 
-  const pairCountA = {};
-  const pairCountB = {};
+  function pairKey(a, b) {
+    return [a, b].sort().join("|");
+  }
 
-  function pairKey(n1, n2) {
-    return [n1, n2].sort().join("|");
-  }
-  function getPairCount(map, n1, n2) {
-    return map[pairKey(n1, n2)] || 0;
-  }
-  function incPairCount(map, n1, n2) {
-    const k = pairKey(n1, n2);
+  function inc(map, a, b) {
+    const k = pairKey(a, b);
     map[k] = (map[k] || 0) + 1;
   }
 
-  function chooseTwo(team, pairMap) {
+  function get(map, a, b) {
+    return map[pairKey(a, b)] || 0;
+  }
+
+  [...teamAPlayers, ...teamBPlayers].forEach(p => {
+    playedCount[p.name] = 0;
+  });
+
+  scheduledMatches = [];
+
+  // ---- PICK 2 PLAYERS FROM SAME TEAM ----
+  function choosePair(team, partnerMap) {
     const pool = [...team];
+
     if (randomnessLevel > 0) shuffleArray(pool, rng);
 
-    pool.sort((p1, p2) => playedCount[p1.name] - playedCount[p2.name]);
+    pool.sort((a, b) => playedCount[a.name] - playedCount[b.name]);
 
-    let bestPair = null;
+    let best = null;
     let bestScore = Infinity;
 
-    const limit = Math.min(pool.length, 2 + Math.floor((randomnessLevel / 100) * 6));
-    const repeatPenalty = 2 + Math.floor(((100 - randomnessLevel) / 100) * 6);
+    const searchLimit = Math.min(pool.length, 6);
 
-    for (let i = 0; i < limit; i++) {
-      for (let j = i + 1; j < limit; j++) {
+    for (let i = 0; i < searchLimit; i++) {
+      for (let j = i + 1; j < searchLimit; j++) {
         const p1 = pool[i];
         const p2 = pool[j];
-        const repeat = getPairCount(pairMap, p1.name, p2.name);
+
+        const partnerRepeat = get(partnerMap, p1.name, p2.name);
+        const imbalance = playedCount[p1.name] + playedCount[p2.name];
 
         const score =
-          playedCount[p1.name] + playedCount[p2.name] + repeat * repeatPenalty;
+          imbalance +
+          partnerRepeat * 6 +
+          rng() * (randomnessLevel / 100);
 
-        const jitter = (randomnessLevel / 100) * rng() * 0.5;
-        const finalScore = score + jitter;
-
-        if (finalScore < bestScore) {
-          bestScore = finalScore;
-          bestPair = [p1, p2];
+        if (score < bestScore) {
+          bestScore = score;
+          best = [p1, p2];
         }
       }
     }
 
-    if (!bestPair) bestPair = [pool[0], pool[1]];
-    return bestPair;
+    return best || [pool[0], pool[1]];
   }
 
-  scheduledMatches = [];
-
+  // ---- MAIN LOOP ----
   for (let m = 1; m <= matchCount; m++) {
-    const [a1, a2] = chooseTwo(teamAShuffled, pairCountA);
-    const [b1, b2] = chooseTwo(teamBShuffled, pairCountB);
+    const [a1, a2] = choosePair(teamAPlayers, partnerCount);
+    const [b1, b2] = choosePair(teamBPlayers, partnerCount);
 
-    playedCount[a1.name]++;
-    playedCount[a2.name]++;
-    playedCount[b1.name]++;
-    playedCount[b2.name]++;
+    // ---- OPPONENT PENALTY ----
+    const opponentPenalty =
+      get(opponentCount, a1.name, b1.name) +
+      get(opponentCount, a1.name, b2.name) +
+      get(opponentCount, a2.name, b1.name) +
+      get(opponentCount, a2.name, b2.name);
 
-    incPairCount(pairCountA, a1.name, a2.name);
-    incPairCount(pairCountB, b1.name, b2.name);
+    if (opponentPenalty > 4 && randomnessLevel < 50) {
+      continue; // retry selection (soft constraint)
+    }
+
+    // ---- UPDATE COUNTS ----
+    [a1, a2, b1, b2].forEach(p => playedCount[p.name]++);
+
+    inc(partnerCount, a1.name, a2.name);
+    inc(partnerCount, b1.name, b2.name);
+
+    inc(opponentCount, a1.name, b1.name);
+    inc(opponentCount, a1.name, b2.name);
+    inc(opponentCount, a2.name, b1.name);
+    inc(opponentCount, a2.name, b2.name);
 
     scheduledMatches.push({
       matchNo: m,
@@ -772,31 +782,24 @@ function scheduleMatchesSmart(teamAPlayers, teamBPlayers, matchCount) {
     });
   }
 
-scheduledMatches.forEach(match => {
-  resultsDiv.innerHTML += `
-    <div class="schedule-card">
-      <div style="display:flex; justify-content:space-between; align-items:center;">
+  // ---- RENDER ----
+  scheduledMatches.forEach(match => {
+    resultsDiv.innerHTML += `
+      <div class="schedule-card">
         <strong>Match ${match.matchNo}</strong>
-        <span>
-          <span class="badge badge-a">Team A</span>
-          <span class="vs">VS</span>
-          <span class="badge badge-b">Team B</span>
-        </span>
+        <div>
+          <span class="badge badge-a">A</span>
+          ${escapeHtml(match.teamA[0])} + ${escapeHtml(match.teamA[1])}
+        </div>
+        <div>
+          <span class="badge badge-b">B</span>
+          ${escapeHtml(match.teamB[0])} + ${escapeHtml(match.teamB[1])}
+        </div>
       </div>
+    `;
+  });
 
-      <div style="margin-top:10px;">
-        <div><span class="badge badge-a">A</span> ${escapeHtml(match.teamA[0])} + ${escapeHtml(match.teamA[1])}</div>
-        <div style="margin-top:6px;"><span class="badge badge-b">B</span> ${escapeHtml(match.teamB[0])} + ${escapeHtml(match.teamB[1])}</div>
-      </div>
-    </div>
-  `;
-});
-
-  // Clear any previous final section
-  const finalSection = document.getElementById("finalSummarySection");
-  if (finalSection) finalSection.style.display = "none";
-
-  // Clear play grid (so it regenerates fresh when user goes Next)
+  document.getElementById("finalSummarySection").style.display = "none";
   document.getElementById("playMatchesGrid").innerHTML = "";
 }
 
