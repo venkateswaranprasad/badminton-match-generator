@@ -39,13 +39,12 @@ function goBack() {
 function goHome() {
   showStep(1);
 
-  // Optional: refresh the group history automatically
-  // so Upcoming schedules list shows immediately
-  if (groupKey) {
-    checkGroupHistory();
-  }
-}
+  // auto-fill group name for fetch convenience
+  const clubNameEl = document.getElementById("clubName");
+  if (clubNameEl && groupDisplayName) clubNameEl.value = groupDisplayName;
 
+  checkGroupHistory();
+}
 
 /***********************
  * STORAGE KEYS
@@ -761,9 +760,10 @@ function scheduleMatchesSmart(teamAPlayers, teamBPlayers, matchCount) {
       get(opponentCount, a2.name, b2.name);
 
     if (opponentPenalty > 4 && randomnessLevel < 50) {
-      continue; // retry selection (soft constraint)
+      m--; // retry same match number
+      continue;
     }
-
+    
     // ---- UPDATE COUNTS ----
     [a1, a2, b1, b2].forEach(p => playedCount[p.name]++);
 
@@ -1271,7 +1271,10 @@ function checkGroupHistory() {
   }
   const total = (groups[key].tournaments || []).length;
   const completed = (groups[key].tournaments || []).filter(t => t.status === "COMPLETED").length;
-  const upcoming = total - completed;
+  const upcoming = (groups[key].tournaments || []).filter(
+  t => t.status === "SCHEDULED" || t.status === "IN_PROGRESS"
+  ).length;
+
   
   document.getElementById("historyMessage").textContent =
     `Found ${total} tournament(s): ${upcoming} upcoming/saved schedule(s), ${completed} completed.`;
@@ -1545,7 +1548,7 @@ function renderPlayerStatsForGroup(key) {
   }
 
   const players = group.players || [];
-  const tournaments = group.tournaments || [];
+  const tournaments = (group.tournaments || []).filter(t => t.status === "COMPLETED");
 
   if (players.length === 0) {
     container.innerHTML = "<p>No players found in this group.</p>";
