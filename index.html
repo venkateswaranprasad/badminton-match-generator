@@ -233,6 +233,36 @@
   </section>
 </section>
 
+<!-- Firebase (CDN) -->
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
+  import { getFirestore } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
+  import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyCg_hGEY3tvwi2shs1CRnjmH2Mx3qHTaao",
+    authDomain: "badminton-match-generato-1a4ad.firebaseapp.com",
+    projectId: "badminton-match-generato-1a4ad",
+    storageBucket: "badminton-match-generato-1a4ad.firebasestorage.app",
+    messagingSenderId: "609561373291",
+    appId: "1:609561373291:web:1ccf3be951131f989e5f2e",
+    measurementId: "G-5PK0KFH3CS"
+  };
+
+  // Init Firebase
+  const app = initializeApp(firebaseConfig);
+  const db = getFirestore(app);
+  const auth = getAuth(app);
+
+  // Login
+  await signInAnonymously(auth);
+
+  // Make available to app.js
+  window.firebaseDb = db;
+  window.firebaseAuth = auth;
+</script>
+
+  
 <!-- Bump version when needed to avoid cache -->
 <script src="app.js?v=15"></script>
 </body>
