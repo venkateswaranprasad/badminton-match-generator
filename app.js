@@ -135,6 +135,16 @@ function getPlayerNameById(pid, fallbackName = "") {
   return p?.name || fallbackName || "Deleted Player";
 }
 
+function generateGroupCode() {
+  const code = "BDM-" + Math.floor(100000 + Math.random() * 900000);
+  document.getElementById("groupCode").value = code;
+}
+
+function getEnteredGroupCode() {
+  return (document.getElementById("groupCode").value || "").trim().toUpperCase();
+}
+
+
 /***********************
  * SEEDED RNG
  ***********************/
