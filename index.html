@@ -56,12 +56,21 @@
 
   <button class="secondary" onclick="checkGroupHistory()">📂 Fetch Group</button>
   <button class="danger" onclick="resetGroupHistory()">🧹 Reset Group History</button>
+
+  <!-- ✅ Group Code UI -->
+  <div id="groupCodeBox" style="margin-top:10px; display:none;">
+    <strong>Group Code:</strong>
+    <span id="groupCodeText"></span>
+  </div>
   
+  <button type="button" id="generateGroupCodeBtn" class="secondary" onclick="generateGroupCode()">
+    🔑 Generate Group Code
+  </button>
+
   <label>Group Code (share with others)</label><br />
   <input type="text" id="groupCode" placeholder="Example: BDM-482913" />
   <button type="button" class="secondary" onclick="generateGroupCode()">🎫 Generate</button>
   <br /><br />
-
 
   <p id="historyMessage"></p>
 
