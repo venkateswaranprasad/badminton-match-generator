@@ -1,3 +1,5 @@
+import { collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
+
 /***********************
  * WIZARD STATE
  ***********************/
@@ -965,7 +967,6 @@ function renderFairnessReport() {
   `;
 }
 
-import { collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
 window.testFirestoreWrite = async function () {
   try {
     if (!window.firebaseDb) {
