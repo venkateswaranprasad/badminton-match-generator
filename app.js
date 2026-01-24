@@ -757,6 +757,10 @@ function scheduleMatchesSmart(teamAPlayers, teamBPlayers, matchCount) {
   
     m++;
   }
+  
+  if ((teamAPlayers.length < 4 || teamBPlayers.length < 4) && matchCount > 3) {
+    console.log("Small teams detected: repeats are unavoidable for fairness.");
+  }
 
   renderScheduleCardsFromIds();
 
