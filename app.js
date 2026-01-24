@@ -685,30 +685,40 @@ function scheduleMatchesSmart(teamAPlayers, teamBPlayers, matchCount) {
     return best || [pool[0], pool[1]];
   }
 
-  for (let m = 1; m <= matchCount; m++) {
+  let m = 1;
+  let attempts = 0;
+  const maxAttempts = matchCount * 50; // safety limit
+
+  while (m <= matchCount && attempts < maxAttempts) {
+    attempts++;
+  
     const [a1, a2] = choosePair(teamAPlayers, partnerCount);
     const [b1, b2] = choosePair(teamBPlayers, partnerCount);
-
+  
     const opponentPenalty =
       get(opponentCount, a1.id, b1.id) +
       get(opponentCount, a1.id, b2.id) +
       get(opponentCount, a2.id, b1.id) +
       get(opponentCount, a2.id, b2.id);
-
+  
+    // ❌ if penalty too high, retry (do NOT consume matchNo)
     if (opponentPenalty > 4 && randomnessLevel < 50) {
       continue;
     }
-
-    [a1, a2, b1, b2].forEach(p => (playedCount[p.id] = (playedCount[p.id] || 0) + 1));
-
+  
+    // ✅ Accept match
+    [a1, a2, b1, b2].forEach(p => {
+      playedCount[p.id] = (playedCount[p.id] || 0) + 1;
+    });
+  
     inc(partnerCount, a1.id, a2.id);
     inc(partnerCount, b1.id, b2.id);
-
+  
     inc(opponentCount, a1.id, b1.id);
     inc(opponentCount, a1.id, b2.id);
     inc(opponentCount, a2.id, b1.id);
     inc(opponentCount, a2.id, b2.id);
-
+  
     scheduledMatches.push({
       matchNo: m,
       teamAIds: [a1.id, a2.id],
@@ -716,6 +726,36 @@ function scheduleMatchesSmart(teamAPlayers, teamBPlayers, matchCount) {
       teamASnapshot: [a1.name, a2.name],
       teamBSnapshot: [b1.name, b2.name]
     });
+  
+    m++;
+  }
+
+  // ✅ fallback: if attempts exceeded, force-fill remaining matches
+  while (m <= matchCount) {
+    const [a1, a2] = choosePair(teamAPlayers, partnerCount);
+    const [b1, b2] = choosePair(teamBPlayers, partnerCount);
+  
+    [a1, a2, b1, b2].forEach(p => {
+      playedCount[p.id] = (playedCount[p.id] || 0) + 1;
+    });
+  
+    inc(partnerCount, a1.id, a2.id);
+    inc(partnerCount, b1.id, b2.id);
+  
+    inc(opponentCount, a1.id, b1.id);
+    inc(opponentCount, a1.id, b2.id);
+    inc(opponentCount, a2.id, b1.id);
+    inc(opponentCount, a2.id, b2.id);
+  
+    scheduledMatches.push({
+      matchNo: m,
+      teamAIds: [a1.id, a2.id],
+      teamBIds: [b1.id, b2.id],
+      teamASnapshot: [a1.name, a2.name],
+      teamBSnapshot: [b1.name, b2.name]
+    });
+  
+    m++;
   }
 
   renderScheduleCardsFromIds();
