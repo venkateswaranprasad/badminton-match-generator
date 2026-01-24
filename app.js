@@ -39,9 +39,6 @@ function goBack() {
 
 function goHome() {
   showStep(1);
-  if (groupKey) {
-    ();
-  }
 }
 
 /***********************
