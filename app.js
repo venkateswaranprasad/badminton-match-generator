@@ -762,10 +762,92 @@ function scheduleMatchesSmart(teamAPlayers, teamBPlayers, matchCount) {
     console.log("Small teams detected: repeats are unavoidable for fairness.");
   }
 
+  renderFairnessReport(playedCount, partnerCount, opponentCount);
+
   renderScheduleCardsFromIds();
 
   document.getElementById("finalSummarySection").style.display = "none";
   document.getElementById("playMatchesGrid").innerHTML = "";
+}
+
+function renderFairnessReport(playedCount, partnerCount, opponentCount) {
+  const div = document.getElementById("fairnessReport");
+  if (!div) return;
+
+  const players = Object.keys(playedCount);
+
+  // Partner repeats total per player
+  const partnerRepeats = {};
+  players.forEach(p => (partnerRepeats[p] = 0));
+
+  Object.keys(partnerCount).forEach(k => {
+    const [p1, p2] = k.split("|");
+    const times = partnerCount[k];
+    if (times > 1) {
+      partnerRepeats[p1] += (times - 1);
+      partnerRepeats[p2] += (times - 1);
+    }
+  });
+
+  // Opponent repeats total per player
+  const opponentRepeats = {};
+  players.forEach(p => (opponentRepeats[p] = 0));
+
+  Object.keys(opponentCount).forEach(k => {
+    const [p1, p2] = k.split("|");
+    const times = opponentCount[k];
+    if (times > 1) {
+      opponentRepeats[p1] += (times - 1);
+      opponentRepeats[p2] += (times - 1);
+    }
+  });
+
+  // Build rows
+  const rows = players
+    .map(name => ({
+      name,
+      played: playedCount[name] || 0,
+      partnerRepeats: partnerRepeats[name] || 0,
+      opponentRepeats: opponentRepeats[name] || 0
+    }))
+    .sort((a, b) => b.played - a.played);
+
+  const minPlayed = Math.min(...rows.map(r => r.played));
+  const maxPlayed = Math.max(...rows.map(r => r.played));
+  const imbalance = maxPlayed - minPlayed;
+
+  let warning = "";
+  if (imbalance > 1) {
+    warning = `⚠️ Some players played more matches than others (difference = ${imbalance}).`;
+  } else {
+    warning = `✅ Match distribution looks balanced (difference = ${imbalance}).`;
+  }
+
+  let html = `
+    <p style="margin:0 0 10px 0; font-weight:bold;">${warning}</p>
+    <table border="1" cellpadding="6">
+      <tr>
+        <th>Player</th>
+        <th>Matches Played</th>
+        <th>Partner Repeats</th>
+        <th>Opponent Repeats</th>
+      </tr>
+  `;
+
+  rows.forEach(r => {
+    html += `
+      <tr>
+        <td>${escapeHtml(r.name)}</td>
+        <td>${r.played}</td>
+        <td>${r.partnerRepeats}</td>
+        <td>${r.opponentRepeats}</td>
+      </tr>
+    `;
+  });
+
+  html += `</table>`;
+
+  div.innerHTML = html;
 }
 
 function renderScheduleCardsFromIds() {
