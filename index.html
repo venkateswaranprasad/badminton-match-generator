@@ -256,7 +256,8 @@
 <!-- Firebase (CDN) -->
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
-  import { getFirestore } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
+  import { getFirestore, doc, getDoc, setDoc, updateDoc, collection, addDoc, getDocs } 
+    from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
   import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
 
   const firebaseConfig = {
@@ -269,20 +270,20 @@
     measurementId: "G-5PK0KFH3CS"
   };
 
-  // Init Firebase
   const app = initializeApp(firebaseConfig);
   const db = getFirestore(app);
   const auth = getAuth(app);
 
-  // Login
   await signInAnonymously(auth);
 
-  // Make available to app.js
+  // ✅ expose to app.js
   window.firebaseDb = db;
   window.firebaseAuth = auth;
+
+  // ✅ Expose firestore helpers so app.js can call them
+  window.fs = { doc, getDoc, setDoc, updateDoc, collection, addDoc, getDocs };
 </script>
 
-  
 <!-- Bump version when needed to avoid cache -->
 <script type="module" src="app.js?v=15"></script>
 </body>
