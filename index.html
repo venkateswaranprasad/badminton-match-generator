@@ -256,14 +256,16 @@
 <!-- Firebase (CDN) -->
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
-  import {
-    getFirestore,
-    doc,
-    getDoc,
-    setDoc,
-    serverTimestamp
-  } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
   import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
+  import {
+  getFirestore,
+  doc,
+  getDoc,
+  setDoc,
+  collection,
+  addDoc,
+  serverTimestamp
+} from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
 
   const firebaseConfig = {
     apiKey: "AIzaSyCg_hGEY3tvwi2shs1CRnjmH2Mx3qHTaao",
@@ -285,7 +287,7 @@
   window.firebaseAuth = auth;
 
   // ✅ expose firestore helpers
-  window.fs = { doc, getDoc, setDoc, serverTimestamp };
+  window.fs = { doc, getDoc, setDoc, collection, addDoc, serverTimestamp };
 </script>
 
 <!-- Bump version when needed to avoid cache -->
