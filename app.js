@@ -1,26 +1,56 @@
-import { collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
+// app.js (MODULE)
+
+/***********************
+ * FIREBASE HELPERS (from index.html)
+ ***********************/
+function requireFirebaseReady() {
+  if (!window.firebaseDb || !window.firebaseAuth?.currentUser || !window.fs) {
+    throw new Error("Firebase not ready. window.firebaseDb / window.fs missing.");
+  }
+}
 
 /***********************
  * WIZARD STATE
  ***********************/
 let currentStep = 1;
 let addPlayerMode = false;
-let currentTournamentId = null; // track currently selected/active tournament
+let currentTournamentId = null;
 
+/***********************
+ * STORAGE KEYS (local cache)
+ ***********************/
+const GROUPS_KEY = "badmintonGroups";
+const TEMP_RESULTS_KEY = "badmintonMatchResults";
+
+/***********************
+ * GLOBAL STATE (current group/tournament)
+ ***********************/
+let groupKey = ""; // normalized name (local cache)
+let groupDisplayName = "";
+let groupCodeActive = ""; // Firestore document id = groupCode
+let groupPlayers = []; // [{id,name,hand,deleted?}...]
+
+let manageMode = false;
+
+let availableTodayMap = {}; // {playerId: true/false}
+let teamMap = {}; // {playerId: "A"|"B"|""}
+
+let scheduledMatches = []; // [{matchNo, teamAIds, teamBIds, teamASnapshot, teamBSnapshot}]
+
+/***********************
+ * UI NAVIGATION
+ ***********************/
 function showStep(stepNo) {
   currentStep = stepNo;
 
-  // Show only the current step section
   for (let i = 1; i <= 4; i++) {
     const el = document.getElementById(`step${i}`);
     if (el) el.style.display = i === stepNo ? "block" : "none";
   }
 
-  // Update text "Step X of 4"
   const stepText = document.getElementById("currentStepText");
   if (stepText) stepText.textContent = stepNo;
 
-  // Update stepper highlight
   for (let i = 1; i <= 4; i++) {
     const el = document.getElementById(`s${i}`);
     if (!el) continue;
@@ -42,54 +72,31 @@ function goHome() {
 }
 
 /***********************
- * STORAGE KEYS
- ***********************/
-const GROUPS_KEY = "badmintonGroups";
-const TEMP_RESULTS_KEY = "badmintonMatchResults";
-
-/***********************
- * GLOBAL STATE (Current tournament)
- ***********************/
-let groupKey = "";
-let groupDisplayName = "";
-let groupPlayers = [];
-
-let manageMode = false;
-
-// Availability & team assignment for TODAY (tournament)
-let availableTodayMap = {}; // {playerId: true/false}
-let teamMap = {}; // {playerId: "A" | "B"}
-
-// Scheduled matches for tournament
-// NEW SHAPE: {matchNo, teamAIds:[], teamBIds:[], teamASnapshot:[], teamBSnapshot:[]}
-let scheduledMatches = [];
-
-/***********************
  * UTILITIES
  ***********************/
 function normalizeGroupName(name) {
   return (name || "").trim().toLowerCase();
 }
 
-function makeGroupCode() {
-  // Example: BDM-482913
-  const num = Math.floor(100000 + Math.random() * 900000);
-  return `BDM-${num}`;
-}
-
-function setGroupCodeUI({ showBox, codeText, enableGenerate }) {
-  const box = document.getElementById("groupCodeBox");
-  const txt = document.getElementById("groupCodeText");
-  const btn = document.getElementById("generateGroupCodeBtn");
-
-  if (box) box.style.display = showBox ? "block" : "none";
-  if (txt) txt.textContent = codeText || "";
-
-  if (btn) btn.disabled = !enableGenerate;
-}
-
 function uid() {
   return Date.now().toString(36) + Math.random().toString(36).slice(2);
+}
+
+function escapeHtml(text) {
+  return (text || "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
+
+function getTodayDateString() {
+  const d = new Date();
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  return `${yyyy}-${mm}-${dd}`;
 }
 
 function getGroupsStore() {
@@ -105,17 +112,17 @@ function getMatchesPerPlayer() {
   return val;
 }
 
-function getRng() {
-  const seedStr = (document.getElementById("seedInput")?.value || "").trim();
-  if (!seedStr) return Math.random;
-  return mulberry32(hashSeedToInt(seedStr));
-}
-
 function getRandomnessLevel() {
   const el = document.getElementById("randomnessLevel");
   let val = el ? Number(el.value) : 30;
   if (Number.isNaN(val)) val = 30;
   return Math.max(0, Math.min(100, val));
+}
+
+function getRng() {
+  const seedStr = (document.getElementById("seedInput")?.value || "").trim();
+  if (!seedStr) return Math.random;
+  return mulberry32(hashSeedToInt(seedStr));
 }
 
 function shuffleArray(arr, rngFn) {
@@ -125,23 +132,28 @@ function shuffleArray(arr, rngFn) {
   }
 }
 
-function getTodayDateString() {
-  const d = new Date();
-  const yyyy = d.getFullYear();
-  const mm = String(d.getMonth() + 1).padStart(2, "0");
-  const dd = String(d.getDate()).padStart(2, "0");
-  return `${yyyy}-${mm}-${dd}`;
+function getEnteredGroupCode() {
+  return (document.getElementById("groupCode")?.value || "").trim().toUpperCase();
 }
 
-function escapeHtml(text) {
-  return (text || "")
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#039;");
+function makeGroupCode() {
+  const num = Math.floor(100000 + Math.random() * 900000);
+  return `BDM-${num}`;
 }
 
+function setGroupCodeUI({ showBox, codeText, enableGenerate }) {
+  const box = document.getElementById("groupCodeBox");
+  const txt = document.getElementById("groupCodeText");
+  const btn = document.getElementById("generateGroupCodeBtn");
+
+  if (box) box.style.display = showBox ? "block" : "none";
+  if (txt) txt.textContent = codeText || "";
+  if (btn) btn.disabled = !enableGenerate;
+}
+
+/***********************
+ * PLAYER HELPERS (ID based)
+ ***********************/
 function getPlayerById(pid) {
   return groupPlayers.find(p => p.id === pid) || null;
 }
@@ -150,35 +162,6 @@ function getPlayerNameById(pid, fallbackName = "") {
   const p = getPlayerById(pid);
   return p?.name || fallbackName || "Deleted Player";
 }
-
-// function generateGroupCode() {
-//   const code = "BDM-" + Math.floor(100000 + Math.random() * 900000);
-//   document.getElementById("groupCode").value = code;
-// }
-
-function getEnteredGroupCode() {
-  return (document.getElementById("groupCode").value || "").trim().toUpperCase();
-}
-
-async function saveGroupToCloud(groupObj) {
-  const db = window.firebaseDb;
-  const { doc, setDoc } = window.fs;
-
-  const ref = doc(db, "groups", groupObj.groupCode); // groupCode = document id
-  await setDoc(ref, groupObj, { merge: true });
-}
-
-async function fetchGroupFromCloud(groupCode) {
-  const db = window.firebaseDb;
-  const { doc, getDoc } = window.fs;
-
-  const ref = doc(db, "groups", groupCode);
-  const snap = await getDoc(ref);
-
-  if (!snap.exists()) return null;
-  return snap.data();
-}
-
 
 /***********************
  * SEEDED RNG
@@ -202,6 +185,147 @@ function mulberry32(seed) {
 }
 
 /***********************
+ * FIRESTORE: GROUP CRUD
+ ***********************/
+async function createGroupInCloud(groupCode, groupName) {
+  requireFirebaseReady();
+  const db = window.firebaseDb;
+  const { doc, setDoc, serverTimestamp } = window.fs;
+
+  const ref = doc(db, "groups", groupCode);
+
+  await setDoc(
+    ref,
+    {
+      groupCode,
+      groupName,
+      createdAt: serverTimestamp(),
+      players: [],
+      tournaments: []
+    },
+    { merge: true }
+  );
+}
+
+async function fetchGroupFromCloud(groupCode) {
+  requireFirebaseReady();
+  const db = window.firebaseDb;
+  const { doc, getDoc } = window.fs;
+
+  const ref = doc(db, "groups", groupCode);
+  const snap = await getDoc(ref);
+
+  if (!snap.exists()) return null;
+  return snap.data();
+}
+
+async function savePlayersToCloud(groupCode, players) {
+  requireFirebaseReady();
+  const db = window.firebaseDb;
+  const { doc, setDoc } = window.fs;
+
+  const ref = doc(db, "groups", groupCode);
+
+  await setDoc(
+    ref,
+    {
+      players: players || []
+    },
+    { merge: true }
+  );
+}
+
+/***********************
+ * STEP 1: FETCH GROUP (Cloud)
+ ***********************/
+async function checkGroupHistory() {
+  const groupCode = getEnteredGroupCode();
+  const msgEl = document.getElementById("historyMessage");
+
+  if (!groupCode) {
+    if (msgEl) msgEl.textContent = "Please enter a Group Code (example: BDM-482913).";
+    return;
+  }
+
+  try {
+    if (msgEl) msgEl.textContent = "🔄 Fetching from Cloud...";
+
+    const cloudGroup = await fetchGroupFromCloud(groupCode);
+
+    if (!cloudGroup) {
+      if (msgEl) msgEl.textContent = "Group not found in Cloud. You can generate a new Group Code.";
+
+      document.getElementById("historySection").style.display = "none";
+      document.getElementById("upcomingSection").style.display = "none";
+      document.getElementById("newGroupSetup").style.display = "block";
+
+      setGroupCodeUI({ showBox: false, codeText: "", enableGenerate: true });
+      return;
+    }
+
+    // ✅ Apply global state from cloud
+    groupCodeActive = groupCode;
+    groupDisplayName = cloudGroup.groupName || "(Unnamed Group)";
+    groupKey = normalizeGroupName(groupDisplayName);
+    groupPlayers = cloudGroup.players || [];
+
+    document.getElementById("clubName").value = groupDisplayName;
+
+    // init availability/team maps
+    availableTodayMap = {};
+    teamMap = {};
+    groupPlayers.forEach(p => {
+      availableTodayMap[p.id] = true;
+      teamMap[p.id] = "";
+    });
+
+    if (msgEl) msgEl.textContent = `✅ Group found in Cloud: ${groupDisplayName}`;
+
+    setGroupCodeUI({ showBox: true, codeText: groupCode, enableGenerate: false });
+
+    // Hide local history views for now (cloud tournaments later)
+    document.getElementById("historySection").style.display = "none";
+    document.getElementById("upcomingSection").style.display = "none";
+    document.getElementById("newGroupSetup").style.display = "none";
+  } catch (err) {
+    console.error(err);
+    if (msgEl) msgEl.textContent = "❌ Error fetching group from Cloud. Check console.";
+  }
+}
+
+/***********************
+ * STEP 1: GENERATE GROUP CODE (Cloud)
+ ***********************/
+async function generateGroupCode() {
+  const nameInput = document.getElementById("clubName").value;
+  const displayName = (nameInput || "").trim();
+
+  if (!displayName) {
+    alert("Please enter a Group Name first.");
+    return;
+  }
+
+  try {
+    const code = makeGroupCode();
+    await createGroupInCloud(code, displayName);
+
+    // set state
+    groupCodeActive = code;
+    groupDisplayName = displayName;
+    groupKey = normalizeGroupName(displayName);
+    groupPlayers = [];
+
+    document.getElementById("groupCode").value = code;
+    setGroupCodeUI({ showBox: true, codeText: code, enableGenerate: false });
+
+    alert("✅ Group Code generated and saved to Cloud: " + code);
+  } catch (err) {
+    console.error(err);
+    alert("❌ Failed to generate group code in Cloud. Check console.");
+  }
+}
+
+/***********************
  * STEP 1 -> STEP 2
  ***********************/
 function goNextFromSetup() {
@@ -213,6 +337,11 @@ function goNextFromSetup() {
     return;
   }
 
+  if (!groupCodeActive) {
+    alert("Please Fetch Group (using Group Code) OR Generate Group Code first.");
+    return;
+  }
+
   groupKey = normalizeGroupName(groupDisplayName);
 
   const matchesPerPlayer = getMatchesPerPlayer();
@@ -221,15 +350,8 @@ function goNextFromSetup() {
     return;
   }
 
-  const groups = getGroupsStore();
-  const existingGroup = groups[groupKey];
-
-  if (existingGroup) {
-    groupPlayers = existingGroup.players || [];
-    if (groupPlayers.length < 4) {
-      alert("This group has less than 4 players. Please add more players.");
-    }
-  } else {
+  // If no players yet (new group), create placeholders using playerCount
+  if (!groupPlayers || groupPlayers.length === 0) {
     const count = Number(document.getElementById("playerCount").value);
     if (!count || count < 4) {
       alert("Please enter at least 4 players for doubles.");
@@ -245,57 +367,45 @@ function goNextFromSetup() {
       });
     }
 
-    groups[groupKey] = {
-      groupKey,
-      groupName: groupDisplayName,
-      groupCode: makeGroupCode(),   // ✅ add group code
-      createdAt: new Date().toISOString(),
-      players: groupPlayers,
-      tournaments: []
-    };
-
-    setGroupsStore(groups);
+    // init today maps
+    availableTodayMap = {};
+    teamMap = {};
+    groupPlayers.forEach(p => {
+      availableTodayMap[p.id] = true;
+      teamMap[p.id] = "";
+    });
+  } else {
+    // existing group players from cloud
+    availableTodayMap = {};
+    teamMap = {};
+    groupPlayers.forEach(p => {
+      availableTodayMap[p.id] = true;
+      teamMap[p.id] = "";
+    });
   }
 
-  availableTodayMap = {};
-  teamMap = {};
-  groupPlayers.forEach(p => {
-    availableTodayMap[p.id] = true;
-    teamMap[p.id] = "";
-  });
-
   manageMode = false;
-
   renderPlayersPanel();
   updateManageButtonState();
   renderTeamAssignmentPanel();
+
   showStep(2);
 }
 
 /***********************
- * STEP 2 UI: Players Panel (Left)
+ * STEP 2: Players Panel
  ***********************/
 function renderPlayersPanel() {
   const panel = document.getElementById("playersPanel");
   panel.innerHTML = "";
 
-  const groups = getGroupsStore();
-  const existingGroup = groups[groupKey];
-  const isExistingGroup = !!existingGroup;
-  const storedPlayers = existingGroup ? (existingGroup.players || []) : groupPlayers;
-
-  groupPlayers = storedPlayers;
-
   groupPlayers.forEach((p, idx) => {
-    const nameLocked = isExistingGroup && p.name && !manageMode;
-    const handLocked = isExistingGroup && p.name && !manageMode;
-
     panel.innerHTML += `
       <div style="border-bottom:1px solid #eee; padding:8px 0;">
         <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
           <label>
             <input type="checkbox" ${availableTodayMap[p.id] ? "checked" : ""} 
-              onchange="toggleAvailability('${p.id}', this.checked)">
+              onchange="window.toggleAvailability('${p.id}', this.checked)">
             Available Today
           </label>
 
@@ -303,11 +413,11 @@ function renderPlayersPanel() {
 
           <input type="text" id="pname_${p.id}" placeholder="Player Name"
             value="${escapeHtml(p.name)}"
-            ${nameLocked ? "disabled" : ""}
+            ${!manageMode && p.name ? "disabled" : ""}
             style="width:180px;"
           />
 
-          <select id="phand_${p.id}" ${handLocked ? "disabled" : ""}>
+          <select id="phand_${p.id}" ${!manageMode && p.name ? "disabled" : ""}>
             <option value="Right" ${p.hand === "Right" ? "selected" : ""}>Right</option>
             <option value="Left" ${p.hand === "Left" ? "selected" : ""}>Left</option>
           </select>
@@ -315,8 +425,8 @@ function renderPlayersPanel() {
           ${
             manageMode && p.name
               ? `
-                <button type="button" onclick="saveEditedPlayer('${p.id}')">Save Edit</button>
-                <button type="button" onclick="deletePlayer('${p.id}')">Delete</button>
+                <button type="button" onclick="window.saveEditedPlayer('${p.id}')">Save Edit</button>
+                <button type="button" onclick="window.deletePlayer('${p.id}')">Delete</button>
               `
               : ""
           }
@@ -326,7 +436,7 @@ function renderPlayersPanel() {
   });
 
   document.getElementById("manageModeText").textContent = manageMode
-    ? "Manage Mode ON (past history won't be modified)"
+    ? "Manage Mode ON (cloud players will be updated)"
     : "";
 }
 
@@ -339,10 +449,20 @@ function toggleManagePlayers() {
   renderPlayersPanel();
 }
 
-/***********************
- * Save edits to a player
- ***********************/
-function saveEditedPlayer(playerId) {
+function updateManageButtonState() {
+  const manageBtn = document.getElementById("managePlayersBtn");
+  if (!manageBtn) return;
+
+  if (addPlayerMode) {
+    manageBtn.disabled = true;
+    return;
+  }
+
+  const hasUnnamed = groupPlayers.some(p => !p.name);
+  manageBtn.disabled = hasUnnamed;
+}
+
+async function saveEditedPlayer(playerId) {
   const nameEl = document.getElementById(`pname_${playerId}`);
   const handEl = document.getElementById(`phand_${playerId}`);
 
@@ -354,6 +474,7 @@ function saveEditedPlayer(playerId) {
     return;
   }
 
+  // duplicate check by name (good UX)
   const lowerNew = newName.toLowerCase();
   const otherNames = groupPlayers
     .filter(p => p.id !== playerId && p.name)
@@ -364,28 +485,47 @@ function saveEditedPlayer(playerId) {
     return;
   }
 
-  const groups = getGroupsStore();
-  const group = groups[groupKey];
-  if (!group) return;
-
-  const p = group.players.find(x => x.id === playerId);
+  const p = groupPlayers.find(x => x.id === playerId);
   if (!p) return;
 
   p.name = newName;
   p.hand = newHand;
 
-  groups[groupKey] = group;
-  setGroupsStore(groups);
-
-  groupPlayers = group.players;
-
   renderPlayersPanel();
   updateManageButtonState();
   renderTeamAssignmentPanel();
+
+  // ✅ save to cloud
+  if (groupCodeActive) {
+    await savePlayersToCloud(groupCodeActive, groupPlayers);
+  }
+}
+
+async function deletePlayer(playerId) {
+  const p = groupPlayers.find(x => x.id === playerId);
+  if (!p) return;
+
+  const ok = confirm(
+    `Delete "${p.name}" from group?\nPast tournaments will still show using snapshots.`
+  );
+  if (!ok) return;
+
+  groupPlayers = groupPlayers.filter(x => x.id !== playerId);
+
+  delete availableTodayMap[playerId];
+  delete teamMap[playerId];
+
+  renderPlayersPanel();
+  renderTeamAssignmentPanel();
+
+  // ✅ save to cloud
+  if (groupCodeActive) {
+    await savePlayersToCloud(groupCodeActive, groupPlayers);
+  }
 }
 
 /***********************
- * Add Player Mode
+ * STEP 2: Add Player (cloud)
  ***********************/
 function startAddPlayer() {
   addPlayerMode = true;
@@ -426,7 +566,7 @@ function cancelAddPlayer() {
   updateManageButtonState();
 }
 
-function saveNewPlayer() {
+async function saveNewPlayer() {
   const name = (document.getElementById("newPlayerName").value || "").trim();
   const hand = document.getElementById("newPlayerHand").value;
 
@@ -442,75 +582,26 @@ function saveNewPlayer() {
     return;
   }
 
-  const groups = getGroupsStore();
-  const group = groups[groupKey];
-
-  if (!group) {
-    alert("Group not found. Please go back and enter group name again.");
-    return;
-  }
-
   const newPlayer = { id: uid(), name, hand };
 
-  group.players.push(newPlayer);
-  groups[groupKey] = group;
-  setGroupsStore(groups);
+  groupPlayers.push(newPlayer);
 
-  groupPlayers = group.players;
   availableTodayMap[newPlayer.id] = true;
   teamMap[newPlayer.id] = "";
 
   cancelAddPlayer();
-
   renderPlayersPanel();
   updateManageButtonState();
   renderTeamAssignmentPanel();
-}
 
-function updateManageButtonState() {
-  const manageBtn = document.getElementById("managePlayersBtn");
-  if (!manageBtn) return;
-
-  if (addPlayerMode) {
-    manageBtn.disabled = true;
-    return;
+  // ✅ save to cloud
+  if (groupCodeActive) {
+    await savePlayersToCloud(groupCodeActive, groupPlayers);
   }
-
-  const hasUnnamed = groupPlayers.some(p => !p.name);
-  manageBtn.disabled = hasUnnamed;
 }
 
 /***********************
- * Delete player (history safe)
- ***********************/
-function deletePlayer(playerId) {
-  const p = groupPlayers.find(x => x.id === playerId);
-  if (!p) return;
-
-  const confirmDel = confirm(
-    `Delete "${p.name}" from group profile?\nPast tournaments will still show using snapshots.`
-  );
-  if (!confirmDel) return;
-
-  const groups = getGroupsStore();
-  const group = groups[groupKey];
-  if (!group) return;
-
-  group.players = group.players.filter(x => x.id !== playerId);
-  groups[groupKey] = group;
-  setGroupsStore(groups);
-
-  groupPlayers = group.players;
-
-  delete availableTodayMap[playerId];
-  delete teamMap[playerId];
-
-  renderPlayersPanel();
-  renderTeamAssignmentPanel();
-}
-
-/***********************
- * STEP 2 UI: Team Assignment Panel
+ * STEP 2: Team Assignment Panel
  ***********************/
 function renderTeamAssignmentPanel() {
   const panel = document.getElementById("teamAssignmentPanel");
@@ -532,12 +623,12 @@ function renderTeamAssignmentPanel() {
         <label style="margin-left:10px;">
           <input type="radio" name="team_${p.id}" value="A"
             ${assigned === "A" ? "checked" : ""}
-            onchange="setTeam('${p.id}', 'A')"> Team A
+            onchange="window.setTeam('${p.id}', 'A')"> Team A
         </label>
         <label style="margin-left:10px;">
           <input type="radio" name="team_${p.id}" value="B"
             ${assigned === "B" ? "checked" : ""}
-            onchange="setTeam('${p.id}', 'B')"> Team B
+            onchange="window.setTeam('${p.id}', 'B')"> Team B
         </label>
       </div>
     `;
@@ -574,7 +665,7 @@ function updateTeamCounts() {
 /***********************
  * STEP 2 -> STEP 3
  ***********************/
-function goNextFromPlayersTeams() {
+async function goNextFromPlayersTeams() {
   document.getElementById("teamAssignmentMessage").textContent = "";
 
   // Ensure all players have names
@@ -593,28 +684,10 @@ function goNextFromPlayersTeams() {
     }
   }
 
-  // Save updated players
-  const groups = getGroupsStore();
-  const group = groups[groupKey];
-  if (!group) {
-    alert("Group not found. Please go back to Setup.");
-    return;
+  // Save players to cloud
+  if (groupCodeActive) {
+    await savePlayersToCloud(groupCodeActive, groupPlayers);
   }
-
-  // Duplicate name check (still good UX)
-  const seen = new Set();
-  for (const p of groupPlayers) {
-    const key = p.name.toLowerCase();
-    if (seen.has(key)) {
-      alert(`Duplicate player name: "${p.name}". Please fix.`);
-      return;
-    }
-    seen.add(key);
-  }
-
-  group.players = groupPlayers;
-  groups[groupKey] = group;
-  setGroupsStore(groups);
 
   const availablePlayers = groupPlayers.filter(p => availableTodayMap[p.id]);
   if (availablePlayers.length < 4) {
@@ -660,12 +733,9 @@ function goNextFromPlayersTeams() {
 }
 
 /***********************
- * STEP 3: schedule (ID based)
+ * STEP 3: SCHEDULER (Guaranteed)
  ***********************/
 function scheduleMatchesSmart(teamAPlayers, teamBPlayers, matchCount) {
-  const resultsDiv = document.getElementById("matchResults");
-  resultsDiv.innerHTML = "";
-
   const rng = getRng();
   const randomnessLevel = getRandomnessLevel();
 
@@ -725,38 +795,36 @@ function scheduleMatchesSmart(teamAPlayers, teamBPlayers, matchCount) {
 
   let m = 1;
   let attempts = 0;
-  const maxAttempts = matchCount * 50; // safety limit
+  const maxAttempts = matchCount * 50;
 
   while (m <= matchCount && attempts < maxAttempts) {
     attempts++;
-  
+
     const [a1, a2] = choosePair(teamAPlayers, partnerCount);
     const [b1, b2] = choosePair(teamBPlayers, partnerCount);
-  
+
     const opponentPenalty =
       get(opponentCount, a1.id, b1.id) +
       get(opponentCount, a1.id, b2.id) +
       get(opponentCount, a2.id, b1.id) +
       get(opponentCount, a2.id, b2.id);
-  
-    // ❌ if penalty too high, retry (do NOT consume matchNo)
+
     if (opponentPenalty > 4 && randomnessLevel < 50) {
       continue;
     }
-  
-    // ✅ Accept match
+
     [a1, a2, b1, b2].forEach(p => {
       playedCount[p.id] = (playedCount[p.id] || 0) + 1;
     });
-  
+
     inc(partnerCount, a1.id, a2.id);
     inc(partnerCount, b1.id, b2.id);
-  
+
     inc(opponentCount, a1.id, b1.id);
     inc(opponentCount, a1.id, b2.id);
     inc(opponentCount, a2.id, b1.id);
     inc(opponentCount, a2.id, b2.id);
-  
+
     scheduledMatches.push({
       matchNo: m,
       teamAIds: [a1.id, a2.id],
@@ -764,27 +832,26 @@ function scheduleMatchesSmart(teamAPlayers, teamBPlayers, matchCount) {
       teamASnapshot: [a1.name, a2.name],
       teamBSnapshot: [b1.name, b2.name]
     });
-  
+
     m++;
   }
 
-  // ✅ fallback: if attempts exceeded, force-fill remaining matches
   while (m <= matchCount) {
     const [a1, a2] = choosePair(teamAPlayers, partnerCount);
     const [b1, b2] = choosePair(teamBPlayers, partnerCount);
-  
+
     [a1, a2, b1, b2].forEach(p => {
       playedCount[p.id] = (playedCount[p.id] || 0) + 1;
     });
-  
+
     inc(partnerCount, a1.id, a2.id);
     inc(partnerCount, b1.id, b2.id);
-  
+
     inc(opponentCount, a1.id, b1.id);
     inc(opponentCount, a1.id, b2.id);
     inc(opponentCount, a2.id, b1.id);
     inc(opponentCount, a2.id, b2.id);
-  
+
     scheduledMatches.push({
       matchNo: m,
       teamAIds: [a1.id, a2.id],
@@ -792,220 +859,20 @@ function scheduleMatchesSmart(teamAPlayers, teamBPlayers, matchCount) {
       teamASnapshot: [a1.name, a2.name],
       teamBSnapshot: [b1.name, b2.name]
     });
-  
+
     m++;
   }
-  
-  if ((teamAPlayers.length < 4 || teamBPlayers.length < 4) && matchCount > 3) {
-    console.log("Small teams detected: repeats are unavoidable for fairness.");
-  }
-
-  renderFairnessReport(playedCount, partnerCount, opponentCount);
 
   renderScheduleCardsFromIds();
-
-  document.getElementById("finalSummarySection").style.display = "none";
-  document.getElementById("playMatchesGrid").innerHTML = "";
+  renderFairnessReport();
 }
 
-function renderFairnessReport() {
-  const reportEl = document.getElementById("fairnessReport");
-  if (!reportEl) return;
-
-  if (!scheduledMatches || scheduledMatches.length === 0) {
-    reportEl.innerHTML = "<p>No matches generated yet.</p>";
-    return;
-  }
-
-  // Build playerId -> best name (snapshot first, then group name)
-  const idToName = {};
-  
-  // 1) First: fill from groupPlayers (fallback)
-  (groupPlayers || []).forEach(p => {
-    if (!p?.id) return;
-    idToName[p.id] = p.name || "(Unknown Player)";
-  });
-  
-  // 2) Override using snapshots from scheduledMatches (highest priority)
-  (scheduledMatches || []).forEach(m => {
-    const aIds = m.teamAIds || [];
-    const bIds = m.teamBIds || [];
-    const aSnap = m.teamASnapshot || [];
-    const bSnap = m.teamBSnapshot || [];
-  
-    if (aIds[0]) idToName[aIds[0]] = aSnap[0] || idToName[aIds[0]] || "(Unknown Player)";
-    if (aIds[1]) idToName[aIds[1]] = aSnap[1] || idToName[aIds[1]] || "(Unknown Player)";
-  
-    if (bIds[0]) idToName[bIds[0]] = bSnap[0] || idToName[bIds[0]] || "(Unknown Player)";
-    if (bIds[1]) idToName[bIds[1]] = bSnap[1] || idToName[bIds[1]] || "(Unknown Player)";
-  });
-
-
-  // Counters
-  const played = {};         // playerId -> count
-  const partnerCount = {};   // "id1|id2" -> count
-  const opponentCount = {};  // "id1|id2" -> count
-
-  function key2(a, b) {
-    return [a, b].sort().join("|");
-  }
-
-  function inc(map, a, b) {
-    const k = key2(a, b);
-    map[k] = (map[k] || 0) + 1;
-  }
-
-  function safeIncPlayed(id) {
-    played[id] = (played[id] || 0) + 1;
-  }
-
-  // Walk through matches
-  scheduledMatches.forEach(m => {
-    const A = m.teamAIds || [];
-    const B = m.teamBIds || [];
-
-    if (A.length !== 2 || B.length !== 2) return;
-
-    // played count
-    safeIncPlayed(A[0]);
-    safeIncPlayed(A[1]);
-    safeIncPlayed(B[0]);
-    safeIncPlayed(B[1]);
-
-    // partner repeats
-    inc(partnerCount, A[0], A[1]);
-    inc(partnerCount, B[0], B[1]);
-
-    // opponent repeats (every A vs every B)
-    inc(opponentCount, A[0], B[0]);
-    inc(opponentCount, A[0], B[1]);
-    inc(opponentCount, A[1], B[0]);
-    inc(opponentCount, A[1], B[1]);
-  });
-
-  // Prepare played rows (include ALL current players, even 0 played)
-  const playedRows = (groupPlayers || []).map(p => {
-    return {
-      id: p.id,
-      name: p.name || "(Unknown)",
-      played: played[p.id] || 0
-    };
-  });
-
-  playedRows.sort((a, b) => b.played - a.played);
-
-  // Partner repeats list (only those > 1)
-  const partnerRepeats = Object.entries(partnerCount)
-    .filter(([_, c]) => c > 1)
-    .sort((a, b) => b[1] - a[1]);
-
-  // Opponent repeats list (only those > 1)
-  const opponentRepeats = Object.entries(opponentCount)
-    .filter(([_, c]) => c > 1)
-    .sort((a, b) => b[1] - a[1]);
-
-  // Helper for name display
-  function safeName(id) {
-    return idToName[id] || "(Unknown Player)";
-  }
-  
-  function pairToNames(pairKey) {
-      const [id1, id2] = pairKey.split("|");
-      return `${safeName(id1)} vs ${safeName(id2)}`;
-  }
-
-  function partnerToNames(pairKey) {
-    const [id1, id2] = pairKey.split("|");
-    return `${safeName(id1)} + ${safeName(id2)}`;
-  }
-
-  // Basic fairness metrics
-  const playedCounts = playedRows.map(r => r.played);
-  const maxPlayed = Math.max(...playedCounts);
-  const minPlayed = Math.min(...playedCounts);
-  const diff = maxPlayed - minPlayed;
-
-  const partnerWorst = partnerRepeats.length ? partnerRepeats[0][1] : 1;
-  const opponentWorst = opponentRepeats.length ? opponentRepeats[0][1] : 1;
-
-  reportEl.innerHTML = `
-    <div style="padding:12px; border:1px solid #eee; border-radius:12px; background:white;">
-      <p style="margin:0;"><strong>Match Balance:</strong> Max Played = ${maxPlayed}, Min Played = ${minPlayed}, Difference = ${diff}</p>
-      <p style="margin:6px 0 0 0;"><strong>Worst Partner Repeat:</strong> ${partnerWorst} time(s)</p>
-      <p style="margin:6px 0 0 0;"><strong>Worst Opponent Repeat:</strong> ${opponentWorst} time(s)</p>
-    </div>
-
-    <h4 style="margin-top:14px;">✅ Matches Played Per Player</h4>
-    <table border="1" cellpadding="6">
-      <tr>
-        <th>Player</th>
-        <th>Matches Played</th>
-      </tr>
-      ${playedRows.map(r => `
-        <tr>
-          <td>${escapeHtml(r.name)}</td>
-          <td>${r.played}</td>
-        </tr>
-      `).join("")}
-    </table>
-
-    <h4 style="margin-top:14px;">🤝 Partner Repeats (same team-mates)</h4>
-    ${partnerRepeats.length === 0 ? "<p>No partner repeats ✅</p>" : `
-      <table border="1" cellpadding="6">
-        <tr>
-          <th>Partner Pair</th>
-          <th>Times</th>
-        </tr>
-        ${partnerRepeats.map(([k, c]) => `
-          <tr>
-            <td>${escapeHtml(partnerToNames(k))}</td>
-            <td>${c}</td>
-          </tr>
-        `).join("")}
-      </table>
-    `}
-
-    <h4 style="margin-top:14px;">⚔️ Opponent Repeats</h4>
-    ${opponentRepeats.length === 0 ? "<p>No opponent repeats ✅</p>" : `
-      <table border="1" cellpadding="6">
-        <tr>
-          <th>Opponent Pair</th>
-          <th>Times</th>
-        </tr>
-        ${opponentRepeats.map(([k, c]) => `
-          <tr>
-            <td>${escapeHtml(pairToNames(k))}</td>
-            <td>${c}</td>
-          </tr>
-        `).join("")}
-      </table>
-    `}
-  `;
-}
-
-window.testFirestoreWrite = async function () {
-  try {
-    if (!window.firebaseDb) {
-      alert("Firestore not ready ❌ window.firebaseDb missing");
-      return;
-    }
-
-    const ref = await addDoc(collection(window.firebaseDb, "testWrites"), {
-      message: "Hello Firestore ✅",
-      createdAt: serverTimestamp()
-    });
-
-    alert("Firestore write success ✅ Doc ID: " + ref.id);
-  } catch (e) {
-    console.error(e);
-    alert("Firestore write failed ❌ Check console");
-  }
-};
-
+/***********************
+ * STEP 3: RENDER SCHEDULE
+ ***********************/
 function renderScheduleCardsFromIds() {
   const resultsDiv = document.getElementById("matchResults");
   if (!resultsDiv) return;
-
   resultsDiv.innerHTML = "";
 
   scheduledMatches.forEach(match => {
@@ -1017,21 +884,158 @@ function renderScheduleCardsFromIds() {
     resultsDiv.innerHTML += `
       <div class="schedule-card">
         <strong>Match ${match.matchNo}</strong>
-        <div>
-          <span class="badge badge-a">A</span>
-          ${escapeHtml(a1)} + ${escapeHtml(a2)}
-        </div>
-        <div>
-          <span class="badge badge-b">B</span>
-          ${escapeHtml(b1)} + ${escapeHtml(b2)}
-        </div>
+        <div><span class="badge badge-a">A</span> ${escapeHtml(a1)} + ${escapeHtml(a2)}</div>
+        <div><span class="badge badge-b">B</span> ${escapeHtml(b1)} + ${escapeHtml(b2)}</div>
       </div>
     `;
   });
+
+  document.getElementById("playMatchesGrid").innerHTML = "";
+  document.getElementById("finalSummarySection").style.display = "none";
 }
 
 /***********************
- * Save schedule
+ * STEP 3: FAIRNESS REPORT
+ ***********************/
+function renderFairnessReport() {
+  const reportEl = document.getElementById("fairnessReport");
+  if (!reportEl) return;
+
+  if (!scheduledMatches || scheduledMatches.length === 0) {
+    reportEl.innerHTML = "<p>No matches generated yet.</p>";
+    return;
+  }
+
+  const idToName = {};
+  (groupPlayers || []).forEach(p => (idToName[p.id] = p.name || "(Unknown Player)"));
+
+  (scheduledMatches || []).forEach(m => {
+    const aIds = m.teamAIds || [];
+    const bIds = m.teamBIds || [];
+    const aSnap = m.teamASnapshot || [];
+    const bSnap = m.teamBSnapshot || [];
+    if (aIds[0]) idToName[aIds[0]] = aSnap[0] || idToName[aIds[0]];
+    if (aIds[1]) idToName[aIds[1]] = aSnap[1] || idToName[aIds[1]];
+    if (bIds[0]) idToName[bIds[0]] = bSnap[0] || idToName[bIds[0]];
+    if (bIds[1]) idToName[bIds[1]] = bSnap[1] || idToName[bIds[1]];
+  });
+
+  const played = {};
+  const partnerCount = {};
+  const opponentCount = {};
+
+  function key2(a, b) {
+    return [a, b].sort().join("|");
+  }
+  function inc(map, a, b) {
+    const k = key2(a, b);
+    map[k] = (map[k] || 0) + 1;
+  }
+
+  scheduledMatches.forEach(m => {
+    const A = m.teamAIds || [];
+    const B = m.teamBIds || [];
+    if (A.length !== 2 || B.length !== 2) return;
+
+    played[A[0]] = (played[A[0]] || 0) + 1;
+    played[A[1]] = (played[A[1]] || 0) + 1;
+    played[B[0]] = (played[B[0]] || 0) + 1;
+    played[B[1]] = (played[B[1]] || 0) + 1;
+
+    inc(partnerCount, A[0], A[1]);
+    inc(partnerCount, B[0], B[1]);
+
+    inc(opponentCount, A[0], B[0]);
+    inc(opponentCount, A[0], B[1]);
+    inc(opponentCount, A[1], B[0]);
+    inc(opponentCount, A[1], B[1]);
+  });
+
+  const playedRows = (groupPlayers || []).map(p => ({
+    id: p.id,
+    name: idToName[p.id] || p.name || "(Unknown)",
+    played: played[p.id] || 0
+  }));
+
+  playedRows.sort((a, b) => b.played - a.played);
+
+  const partnerRepeats = Object.entries(partnerCount)
+    .filter(([_, c]) => c > 1)
+    .sort((a, b) => b[1] - a[1]);
+
+  const opponentRepeats = Object.entries(opponentCount)
+    .filter(([_, c]) => c > 1)
+    .sort((a, b) => b[1] - a[1]);
+
+  const playedCounts = playedRows.map(r => r.played);
+  const maxPlayed = Math.max(...playedCounts);
+  const minPlayed = Math.min(...playedCounts);
+  const diff = maxPlayed - minPlayed;
+
+  const partnerWorst = partnerRepeats.length ? partnerRepeats[0][1] : 1;
+  const opponentWorst = opponentRepeats.length ? opponentRepeats[0][1] : 1;
+
+  function safeName(id) {
+    return idToName[id] || "(Unknown Player)";
+  }
+
+  function partnerToNames(pairKey) {
+    const [id1, id2] = pairKey.split("|");
+    return `${safeName(id1)} + ${safeName(id2)}`;
+  }
+
+  function opponentToNames(pairKey) {
+    const [id1, id2] = pairKey.split("|");
+    return `${safeName(id1)} vs ${safeName(id2)}`;
+  }
+
+  reportEl.innerHTML = `
+    <div style="padding:12px; border:1px solid #eee; border-radius:12px; background:white;">
+      <p style="margin:0;"><strong>Match Balance:</strong> Max Played = ${maxPlayed}, Min Played = ${minPlayed}, Difference = ${diff}</p>
+      <p style="margin:6px 0 0 0;"><strong>Worst Partner Repeat:</strong> ${partnerWorst} time(s)</p>
+      <p style="margin:6px 0 0 0;"><strong>Worst Opponent Repeat:</strong> ${opponentWorst} time(s)</p>
+    </div>
+
+    <h4 style="margin-top:14px;">✅ Matches Played Per Player</h4>
+    <table border="1" cellpadding="6">
+      <tr><th>Player</th><th>Matches Played</th></tr>
+      ${playedRows.map(r => `
+        <tr><td>${escapeHtml(r.name)}</td><td>${r.played}</td></tr>
+      `).join("")}
+    </table>
+
+    <h4 style="margin-top:14px;">🤝 Partner Repeats</h4>
+    ${
+      partnerRepeats.length === 0
+        ? "<p>No partner repeats ✅</p>"
+        : `
+        <table border="1" cellpadding="6">
+          <tr><th>Partner Pair</th><th>Times</th></tr>
+          ${partnerRepeats.map(([k, c]) => `
+            <tr><td>${escapeHtml(partnerToNames(k))}</td><td>${c}</td></tr>
+          `).join("")}
+        </table>
+      `
+    }
+
+    <h4 style="margin-top:14px;">⚔️ Opponent Repeats</h4>
+    ${
+      opponentRepeats.length === 0
+        ? "<p>No opponent repeats ✅</p>"
+        : `
+        <table border="1" cellpadding="6">
+          <tr><th>Opponent Pair</th><th>Times</th></tr>
+          ${opponentRepeats.map(([k, c]) => `
+            <tr><td>${escapeHtml(opponentToNames(k))}</td><td>${c}</td></tr>
+          `).join("")}
+        </table>
+      `
+    }
+  `;
+}
+
+/***********************
+ * STEP 3: SAVE SCHEDULE (local only for now)
  ***********************/
 function saveSchedule() {
   const msgEl = document.getElementById("scheduleSaveMsg");
@@ -1072,17 +1076,11 @@ function saveSchedule() {
   };
 
   const groups = getGroupsStore();
-  const group = groups[groupKey];
+  groups[groupKey] = groups[groupKey] || { groupKey, groupName: groupDisplayName, tournaments: [], players: groupPlayers };
+  groups[groupKey].players = groupPlayers;
+  groups[groupKey].tournaments = groups[groupKey].tournaments || [];
+  groups[groupKey].tournaments.push(tournamentRecord);
 
-  if (!group) {
-    alert("Group not found in storage.");
-    return;
-  }
-
-  group.tournaments = group.tournaments || [];
-  group.tournaments.push(tournamentRecord);
-
-  groups[groupKey] = group;
   setGroupsStore(groups);
 
   currentTournamentId = tournamentRecord.tournamentId;
@@ -1116,26 +1114,12 @@ function regenerateMatches() {
 }
 
 function goNextFromSchedule() {
-  if (currentTournamentId) {
-    const groups = getGroupsStore();
-    const group = groups[groupKey];
-
-    if (group && group.tournaments) {
-      const t = group.tournaments.find(x => x.tournamentId === currentTournamentId);
-      if (t) {
-        t.status = "IN_PROGRESS";
-        groups[groupKey] = group;
-        setGroupsStore(groups);
-      }
-    }
-  }
-
   letsPlay();
   showStep(4);
 }
 
 /***********************
- * STEP 4: Play (ID based)
+ * STEP 4: PLAY (temp storage)
  ***********************/
 function letsPlay() {
   if (!scheduledMatches || scheduledMatches.length === 0) {
@@ -1155,21 +1139,15 @@ function letsPlay() {
     grid.innerHTML += `
       <div style="border:1px solid #ddd; padding:12px; border-radius:8px; margin-bottom:10px;">
         <div><strong>Match ${match.matchNo}</strong></div>
-
-        <div style="margin-top:6px;">
-          Team A: ${escapeHtml(a1)} + ${escapeHtml(a2)}
-        </div>
-
-        <div style="margin-top:6px;">
-          Team B: ${escapeHtml(b1)} + ${escapeHtml(b2)}
-        </div>
+        <div style="margin-top:6px;">Team A: ${escapeHtml(a1)} + ${escapeHtml(a2)}</div>
+        <div style="margin-top:6px;">Team B: ${escapeHtml(b1)} + ${escapeHtml(b2)}</div>
 
         <div style="margin-top:10px; display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
           <label>Score A:</label>
           <input type="number" id="scoreA${match.matchNo}" min="0" style="width:70px;">
           <label>Score B:</label>
           <input type="number" id="scoreB${match.matchNo}" min="0" style="width:70px;">
-          <button onclick="saveMatchResult(${match.matchNo})">Save</button>
+          <button onclick="window.saveMatchResult(${match.matchNo})">Save</button>
           <span id="saveMsg${match.matchNo}" style="margin-left:6px;"></span>
         </div>
       </div>
@@ -1179,9 +1157,17 @@ function letsPlay() {
   document.getElementById("finalSummarySection").style.display = "none";
 }
 
-/***********************
- * Save per-match result (temp)
- ***********************/
+function storeTempMatchResult(resultObj) {
+  const existing = JSON.parse(localStorage.getItem(TEMP_RESULTS_KEY) || "[]");
+
+  const filtered = existing.filter(
+    r => !(r.groupKey === resultObj.groupKey && r.matchNo === resultObj.matchNo)
+  );
+
+  filtered.push(resultObj);
+  localStorage.setItem(TEMP_RESULTS_KEY, JSON.stringify(filtered));
+}
+
 function saveMatchResult(matchNo) {
   const scoreAEl = document.getElementById(`scoreA${matchNo}`);
   const scoreBEl = document.getElementById(`scoreB${matchNo}`);
@@ -1231,20 +1217,6 @@ function saveMatchResult(matchNo) {
   storeTempMatchResult(resultObj);
 }
 
-function storeTempMatchResult(resultObj) {
-  const existing = JSON.parse(localStorage.getItem(TEMP_RESULTS_KEY) || "[]");
-
-  const filtered = existing.filter(
-    r => !(r.groupKey === resultObj.groupKey && r.matchNo === resultObj.matchNo)
-  );
-
-  filtered.push(resultObj);
-  localStorage.setItem(TEMP_RESULTS_KEY, JSON.stringify(filtered));
-}
-
-/***********************
- * Conclude Play -> Summary
- ***********************/
 function concludePlay() {
   const allResults = JSON.parse(localStorage.getItem(TEMP_RESULTS_KEY) || "[]");
   const groupResults = allResults
@@ -1315,9 +1287,7 @@ function concludePlay() {
   matchTable += `</table>`;
   document.getElementById("matchSummary").innerHTML = matchTable;
 
-  // Player of tournament (ID based)
-  const playerWinCount = {}; // {playerId: wins}
-
+  const playerWinCount = {};
   groupResults.forEach(r => {
     const winnersIds = r.winnerTeam === "A" ? r.teamAIds : r.teamBIds;
     winnersIds.forEach(pid => {
@@ -1327,613 +1297,26 @@ function concludePlay() {
 
   const maxWins = Math.max(...Object.values(playerWinCount));
   const topIds = Object.keys(playerWinCount).filter(pid => playerWinCount[pid] === maxWins);
-
   const topNames = topIds.map(pid => getPlayerNameById(pid));
+
   document.getElementById("playerOfTournament").innerHTML =
     `Player of the tournament: <strong>${topNames.join(", ")}</strong> (${maxWins} wins)`;
 
   document.getElementById("finalSummarySection").style.display = "block";
 }
 
-/***********************
- * Save Results -> Update stored tournament
- ***********************/
 function saveResults() {
-  const allResults = JSON.parse(localStorage.getItem(TEMP_RESULTS_KEY) || "[]");
-  const groupResults = allResults
-    .filter(r => r.groupKey === groupKey)
-    .sort((a, b) => a.matchNo - b.matchNo);
-
-  if (groupResults.length === 0) {
-    alert("No saved match results found. Save scores first.");
-    return;
-  }
-
-  const groups = getGroupsStore();
-  const group = groups[groupKey];
-
-  if (!group) {
-    alert("Group not found. Please restart.");
-    return;
-  }
-
-  group.tournaments = group.tournaments || [];
-
-  if (currentTournamentId) {
-    const existingTournament = group.tournaments.find(t => t.tournamentId === currentTournamentId);
-
-    if (existingTournament) {
-      existingTournament.status = "COMPLETED";
-      existingTournament.matchResults = groupResults;
-      existingTournament.completedAt = new Date().toISOString();
-      existingTournament.scheduledMatches = scheduledMatches;
-    } else {
-      // fallback create a completed record
-      group.tournaments.push({
-        tournamentId: Date.now(),
-        createdAt: new Date().toISOString(),
-        playDate: "",
-        status: "COMPLETED",
-        matchesPerPlayer: getMatchesPerPlayer(),
-        availablePlayerIds: [],
-        teamAIds: [],
-        teamBIds: [],
-        scheduledMatches,
-        matchResults: groupResults,
-        completedAt: new Date().toISOString()
-      });
-    }
-  } else {
-    // no saved schedule -> still save completed
-    group.tournaments.push({
-      tournamentId: Date.now(),
-      createdAt: new Date().toISOString(),
-      playDate: "",
-      status: "COMPLETED",
-      matchesPerPlayer: getMatchesPerPlayer(),
-      availablePlayerIds: [],
-      teamAIds: [],
-      teamBIds: [],
-      scheduledMatches,
-      matchResults: groupResults,
-      completedAt: new Date().toISOString()
-    });
-  }
-
-  groups[groupKey] = group;
-  setGroupsStore(groups);
-
-  const remaining = allResults.filter(r => r.groupKey !== groupKey);
-  localStorage.setItem(TEMP_RESULTS_KEY, JSON.stringify(remaining));
-
-  alert("Results saved ✅ Starting a new tournament for this group.");
+  alert("✅ For now results are saved in local storage only. Cloud saving is next step.");
   resetAll();
 }
 
 /***********************
- * Fetch group history (Updated)
+ * RESET
  ***********************/
-   async function checkGroupHistory() {
-    const codeInput = document.getElementById("groupCode").value;
-    const groupCode = (codeInput || "").trim().toUpperCase();
-  
-    if (!groupCode) {
-      document.getElementById("historyMessage").textContent =
-        "Please enter a Group Code (example: BDM-482913).";
-      return;
-    }
-  
-    // Firebase not loaded yet
-    if (!window.firebaseDb || !window.firebaseAuth?.currentUser) {
-      document.getElementById("historyMessage").textContent =
-        "Firebase not ready yet. Please refresh the page.";
-      return;
-    }
-  
-    document.getElementById("historyMessage").textContent = "🔄 Fetching from Cloud...";
-  
-    try {
-      const cloudGroup = await fetchGroupFromCloud(groupCode);
-  
-      // ❌ Group not found in Cloud
-      if (!cloudGroup) {
-        document.getElementById("historyMessage").textContent =
-          "Group not found in Cloud. You can generate a new Group Code.";
-  
-        document.getElementById("historySection").style.display = "none";
-        document.getElementById("upcomingSection").style.display = "none";
-        document.getElementById("newGroupSetup").style.display = "block";
-  
-        setGroupCodeUI({ showBox: false, codeText: "", enableGenerate: true });
-        return;
-      }
-  
-      // ✅ Group found
-      const groupName = cloudGroup.groupName || "(Unnamed Group)";
-  
-      // set global state
-      groupDisplayName = groupName;
-      groupKey = normalizeGroupName(groupName);
-      groupPlayers = cloudGroup.players || [];
-  
-      // update UI
-      document.getElementById("clubName").value = groupName;
-  
-      document.getElementById("historyMessage").textContent =
-        `✅ Group found in Cloud: ${groupName}`;
-  
-      // disable generate button for existing group
-      setGroupCodeUI({ showBox: true, codeText: groupCode, enableGenerate: false });
-  
-      // for now hide history until tournaments are added to cloud
-      document.getElementById("historySection").style.display = "none";
-      document.getElementById("upcomingSection").style.display = "none";
-      document.getElementById("newGroupSetup").style.display = "none";
-  
-    } catch (err) {
-      console.error(err);
-      document.getElementById("historyMessage").textContent =
-        "❌ Error fetching group from Cloud. Check console for details.";
-    }
-  }
-
-async function generateGroupCode() {
-  const nameInput = document.getElementById("clubName").value;
-  const displayName = (nameInput || "").trim();
-
-  if (!displayName) {
-    alert("Please enter a Group Name first.");
-    return;
-  }
-
-  // Firebase ready check
-  if (!window.firebaseDb || !window.firebaseAuth?.currentUser) {
-    alert("Firebase not ready yet. Please refresh the page.");
-    return;
-  }
-
-  // Generate random group code like BDM-482913
-  const groupCode = "BDM-" + Math.floor(100000 + Math.random() * 900000);
-
-  try {
-    // ✅ Create group in Firestore
-    await createGroupInCloud(groupCode, displayName);
-
-    // ✅ Update UI
-    document.getElementById("groupCode").value = groupCode;
-    setGroupCodeUI({ showBox: true, codeText: groupCode, enableGenerate: false });
-
-    alert("✅ Group Code generated and saved to Cloud: " + groupCode);
-
-  } catch (err) {
-    console.error(err);
-    alert("❌ Failed to generate group code in Cloud. Check console.");
-  }
-}
-
-async function createGroupInCloud(groupCode, groupName) {
-  const db = window.firebaseDb;
-  const { doc, setDoc, serverTimestamp } = window.fs;
-
-  const ref = doc(db, "groups", groupCode);
-
-  await setDoc(ref, {
-    groupCode,
-    groupName,
-    createdAt: serverTimestamp(),
-    players: [],
-    tournaments: []
-  });
-}
-
-
-function showUpcomingTournaments(key) {
-  const groups = getGroupsStore();
-  const group = groups[key];
-
-  const sec = document.getElementById("upcomingSection");
-  const list = document.getElementById("upcomingList");
-
-  if (!sec || !list) return;
-
-  const upcoming = (group.tournaments || [])
-    .filter(t => t.status === "SCHEDULED" || t.status === "IN_PROGRESS")
-    .sort((a, b) => (a.playDate || "").localeCompare(b.playDate || ""));
-
-  if (upcoming.length === 0) {
-    sec.style.display = "none";
-    list.innerHTML = "";
-    return;
-  }
-
-  let html = `
-    <table border="1" cellpadding="6">
-      <tr>
-        <th>Play Date</th>
-        <th>Created At</th>
-        <th>Status</th>
-        <th>Action</th>
-      </tr>
-  `;
-
-  upcoming.forEach(t => {
-    html += `
-      <tr>
-        <td><strong>${t.playDate || "-"}</strong></td>
-        <td>${t.createdAt ? new Date(t.createdAt).toLocaleString() : "-"}</td>
-        <td>${t.status}</td>
-        <td>
-          <button onclick="startPlayFromSavedTournament('${key}', ${t.tournamentId})">
-            ▶ Start Play
-          </button>
-          <button class="danger" onclick="deleteSavedTournament('${key}', ${t.tournamentId})">
-            🗑 Delete
-          </button>
-        </td>
-      </tr>
-    `;
-  });
-
-  html += `</table>`;
-
-  list.innerHTML = html;
-  sec.style.display = "block";
-}
-
-function deleteSavedTournament(key, tournamentId) {
-  const groups = getGroupsStore();
-  const group = groups[key];
-  if (!group) return;
-
-  const t = (group.tournaments || []).find(x => x.tournamentId === tournamentId);
-  if (!t) return;
-
-  const ok = confirm(`Delete saved schedule?\nPlay Date: ${t.playDate || "-"}\nStatus: ${t.status}`);
-  if (!ok) return;
-
-  group.tournaments = (group.tournaments || []).filter(x => x.tournamentId !== tournamentId);
-  groups[key] = group;
-  setGroupsStore(groups);
-
-  alert("Saved schedule deleted ✅");
-
-  showUpcomingTournaments(key);
-  showGroupHistory(key);
-  showTournamentStats();
-}
-
-function startPlayFromSavedTournament(key, tournamentId) {
-  const groups = getGroupsStore();
-  const group = groups[key];
-
-  if (!group) {
-    alert("Group not found.");
-    return;
-  }
-
-  const t = (group.tournaments || []).find(x => x.tournamentId === tournamentId);
-  if (!t) {
-    alert("Tournament not found.");
-    return;
-  }
-
-  if (!Array.isArray(t.scheduledMatches) || t.scheduledMatches.length === 0) {
-    alert("No schedule found in this tournament.");
-    return;
-  }
-
-  groupKey = key;
-  groupDisplayName = group.groupName || key;
-  groupPlayers = group.players || [];
-
-  scheduledMatches = t.scheduledMatches;
-  currentTournamentId = t.tournamentId;
-
-  const playDateEl = document.getElementById("playDate");
-  if (playDateEl && t.playDate) playDateEl.value = t.playDate;
-
-  t.status = "IN_PROGRESS";
-  groups[key] = group;
-  setGroupsStore(groups);
-
-  renderScheduleCardsFromIds();
-  showStep(3);
-  alert("Loaded saved schedule ✅ You can now click Let’s Play.");
-}
-
-function showGroupHistory(key) {
-  const groups = getGroupsStore();
-  const tournaments = (groups[key].tournaments || [])
-    .filter(t => t.status === "COMPLETED")
-    .slice()
-    .reverse();
-
-  const historyList = document.getElementById("historyList");
-  historyList.innerHTML = "";
-
-  if (tournaments.length === 0) {
-    historyList.innerHTML = "<p>No tournament history found.</p>";
-    return;
-  }
-
-  let tableHtml = `
-    <table border="1" cellpadding="6">
-      <tr>
-        <th>Completed At</th>
-        <th>Team A Wins</th>
-        <th>Team B Wins</th>
-        <th>Action</th>
-      </tr>
-  `;
-
-  tournaments.forEach(t => {
-    const matchResults = t.matchResults || [];
-
-    let teamAWins = 0;
-    let teamBWins = 0;
-
-    matchResults.forEach(r => {
-      if (r.winnerTeam === "A") teamAWins++;
-      else if (r.winnerTeam === "B") teamBWins++;
-    });
-
-    tableHtml += `
-      <tr>
-        <td>${new Date(t.completedAt || t.createdAt || "").toLocaleString()}</td>
-        <td>${teamAWins}</td>
-        <td>${teamBWins}</td>
-        <td>
-          <button onclick="viewTournamentSummary('${key}', ${t.tournamentId})">
-            📊 View Summary
-          </button>
-        </td>
-      </tr>
-    `;
-  });
-
-  tableHtml += `</table>`;
-  tableHtml += `<div id="historySummary" style="margin-top:15px;"></div>`;
-
-  historyList.innerHTML = tableHtml;
-}
-
-function showTournamentStats() {
-  const tView = document.getElementById("tournamentStatsView");
-  const pView = document.getElementById("playerStatsView");
-  if (tView) tView.style.display = "block";
-  if (pView) pView.style.display = "none";
-}
-
-function showPlayerStats() {
-  const tView = document.getElementById("tournamentStatsView");
-  const pView = document.getElementById("playerStatsView");
-  if (tView) tView.style.display = "none";
-  if (pView) pView.style.display = "block";
-  renderPlayerStatsForGroup(groupKey);
-}
-
-function renderPlayerStatsForGroup(key) {
-  const groups = getGroupsStore();
-  const group = groups[key];
-
-  const container = document.getElementById("playerStatsTable");
-  if (!container) return;
-
-  if (!group) {
-    container.innerHTML = "<p>Group not found.</p>";
-    return;
-  }
-
-  const players = group.players || [];
-  const tournaments = (group.tournaments || []).filter(t => t.status === "COMPLETED");
-
-  if (players.length === 0) {
-    container.innerHTML = "<p>No players found in this group.</p>";
-    return;
-  }
-
-  if (tournaments.length === 0) {
-    container.innerHTML = "<p>No completed tournaments found for this group.</p>";
-    return;
-  }
-
-  const stats = {};
-  players.forEach(p => {
-    stats[p.id] = { id: p.id, name: p.name, played: 0, won: 0 };
-  });
-
-  tournaments.forEach(t => {
-    const matchResults = t.matchResults || [];
-    matchResults.forEach(m => {
-      (m.teamAIds || []).forEach(pid => { if (stats[pid]) stats[pid].played++; });
-      (m.teamBIds || []).forEach(pid => { if (stats[pid]) stats[pid].played++; });
-
-      const winners = m.winnerTeam === "A" ? (m.teamAIds || []) : (m.teamBIds || []);
-      winners.forEach(pid => { if (stats[pid]) stats[pid].won++; });
-    });
-  });
-
-  const rows = Object.values(stats).sort((a, b) => b.won - a.won);
-
-  let html = `
-    <table border="1" cellpadding="6">
-      <tr>
-        <th>Player Name</th>
-        <th>Matches Played</th>
-        <th>Matches Won</th>
-        <th>Win %</th>
-      </tr>
-  `;
-
-  rows.forEach(r => {
-    const winPct = r.played > 0 ? ((r.won / r.played) * 100).toFixed(1) : "0.0";
-    html += `
-      <tr>
-        <td>${escapeHtml(r.name)}</td>
-        <td>${r.played}</td>
-        <td>${r.won}</td>
-        <td>${winPct}%</td>
-      </tr>
-    `;
-  });
-
-  html += `</table>`;
-  container.innerHTML = html;
-}
-
-function closeHistorySummary() {
-  const summaryDiv = document.getElementById("historySummary");
-  if (summaryDiv) summaryDiv.innerHTML = "";
-}
-
-function viewTournamentSummary(groupKey, tournamentId) {
-  const groups = getGroupsStore();
-  const group = groups[groupKey];
-
-  if (!group) {
-    alert("Group not found.");
-    return;
-  }
-
-  const t = (group.tournaments || []).find(x => x.tournamentId === tournamentId);
-  if (!t) {
-    alert("Tournament not found.");
-    return;
-  }
-
-  const results = (t.matchResults || []).slice().sort((a, b) => a.matchNo - b.matchNo);
-  if (results.length === 0) {
-    alert("No match results saved for this tournament.");
-    return;
-  }
-
-  let teamAWins = 0;
-  let teamBWins = 0;
-
-  results.forEach(r => {
-    if (r.winnerTeam === "A") teamAWins++;
-    else if (r.winnerTeam === "B") teamBWins++;
-  });
-
-  let tournamentWinner = "Draw";
-  if (teamAWins > teamBWins) tournamentWinner = "Team A";
-  else if (teamBWins > teamAWins) tournamentWinner = "Team B";
-
-  const playerWinCount = {};
-  results.forEach(r => {
-    const winners = r.winnerTeam === "A" ? (r.teamAIds || []) : (r.teamBIds || []);
-    winners.forEach(pid => {
-      playerWinCount[pid] = (playerWinCount[pid] || 0) + 1;
-    });
-  });
-
-  const maxWins = Math.max(...Object.values(playerWinCount));
-  const topPlayers = Object.keys(playerWinCount)
-    .filter(pid => playerWinCount[pid] === maxWins)
-    .map(pid => getPlayerNameById(pid));
-
-  let matchTable = `
-    <table border="1" cellpadding="6" style="margin-top:10px;">
-      <tr>
-        <th>Team A Players</th>
-        <th>Team A Points</th>
-        <th>Team B Players</th>
-        <th>Team B Points</th>
-      </tr>
-  `;
-
-  results.forEach(r => {
-    const aNames = (r.teamAIds || []).map((id, i) => getPlayerNameById(id, r.teamASnapshot?.[i]));
-    const bNames = (r.teamBIds || []).map((id, i) => getPlayerNameById(id, r.teamBSnapshot?.[i]));
-
-    matchTable += `
-      <tr>
-        <td>${aNames.join(" | ")}</td>
-        <td>${r.scoreA}</td>
-        <td>${bNames.join(" | ")}</td>
-        <td>${r.scoreB}</td>
-      </tr>
-    `;
-  });
-
-  matchTable += `</table>`;
-
-  const summaryDiv = document.getElementById("historySummary");
-  if (!summaryDiv) return;
-
-  summaryDiv.innerHTML = `
-    <div style="padding:12px; border:1px solid #ddd; border-radius:12px; background:white;">
-      <div style="display:flex; justify-content:space-between; align-items:center; gap:10px;">
-        <h3 style="margin:0;">Final Result</h3>
-        <button class="secondary" onclick="closeHistorySummary()">❌ Close</button>
-      </div>
-
-      <p style="margin-top:10px;"><strong>${tournamentWinner} won</strong></p>
-
-      <h4>Overall Summary</h4>
-      <table border="1" cellpadding="6">
-        <tr>
-          <th>Team A</th>
-          <th>No. of matches won</th>
-          <th>Team B</th>
-          <th>No. of matches won</th>
-        </tr>
-        <tr>
-          <td>Team A</td>
-          <td>${teamAWins}</td>
-          <td>Team B</td>
-          <td>${teamBWins}</td>
-        </tr>
-      </table>
-
-      <h4 style="margin-top:15px;">Match Summary</h4>
-      ${matchTable}
-
-      <h4 style="margin-top:15px;">Player of the Tournament</h4>
-      <p><strong>${topPlayers.join(", ")}</strong> (${maxWins} wins)</p>
-    </div>
-  `;
-
-  summaryDiv.scrollIntoView({ behavior: "smooth", block: "start" });
-}
-
 function resetGroupHistory() {
-  const nameInput = document.getElementById("clubName").value;
-  const display = (nameInput || "").trim();
-
-  if (!display) {
-    alert("Please enter a group name first.");
-    return;
-  }
-
-  const key = normalizeGroupName(display);
-  const groups = getGroupsStore();
-
-  if (!groups[key]) {
-    alert("Group not found.");
-    return;
-  }
-
-  const ok = confirm(
-    `Reset history for "${display}"?\nThis will delete all saved tournaments for this group.`
-  );
-  if (!ok) return;
-
-  groups[key].tournaments = [];
-  setGroupsStore(groups);
-
-  const allResults = JSON.parse(localStorage.getItem(TEMP_RESULTS_KEY) || "[]");
-  const remaining = allResults.filter(r => r.groupKey !== key);
-  localStorage.setItem(TEMP_RESULTS_KEY, JSON.stringify(remaining));
-
-  document.getElementById("historyMessage").textContent = "History cleared ✅";
-  document.getElementById("historySection").style.display = "none";
-  document.getElementById("historyList").innerHTML = "";
+  alert("Reset Group History: this feature is still local-only in this version.");
 }
 
-/***********************
- * RESET (Full reset)
- ***********************/
 function resetAll() {
   document.getElementById("playerCount").value = "";
   document.getElementById("matchesPerPlayer").value = 1;
@@ -1941,6 +1324,7 @@ function resetAll() {
   document.getElementById("randomnessLevel").value = 30;
 
   document.getElementById("matchResults").innerHTML = "";
+  document.getElementById("fairnessReport").innerHTML = "";
   document.getElementById("playMatchesGrid").innerHTML = "";
 
   document.getElementById("teamAssignmentMessage").textContent = "";
@@ -1952,18 +1336,10 @@ function resetAll() {
   scheduledMatches = [];
 
   document.getElementById("clubName").value = "";
-
   document.getElementById("historyMessage").textContent = "";
+
   document.getElementById("historySection").style.display = "none";
-  document.getElementById("historyList").innerHTML = "";
-
-  const upcomingSection = document.getElementById("upcomingSection");
-  const upcomingList = document.getElementById("upcomingList");
-  if (upcomingSection) upcomingSection.style.display = "none";
-  if (upcomingList) upcomingList.innerHTML = "";
-
-  const historySummary = document.getElementById("historySummary");
-  if (historySummary) historySummary.innerHTML = "";
+  document.getElementById("upcomingSection").style.display = "none";
 
   const msg = document.getElementById("scheduleSaveMsg");
   if (msg) msg.textContent = "";
@@ -1973,7 +1349,11 @@ function resetAll() {
 
   groupKey = "";
   groupDisplayName = "";
+  groupCodeActive = "";
   currentTournamentId = null;
+  groupPlayers = [];
+
+  setGroupCodeUI({ showBox: false, codeText: "", enableGenerate: true });
 
   showStep(1);
 }
@@ -1988,16 +1368,74 @@ function toggleDarkMode() {
 }
 
 /***********************
+ * FIRESTORE TEST WRITE
+ ***********************/
+async function testFirestoreWrite() {
+  try {
+    requireFirebaseReady();
+
+    const db = window.firebaseDb;
+    const { collection, addDoc, serverTimestamp } = window.fs;
+
+    const ref = await addDoc(collection(db, "testWrites"), {
+      message: "Hello Firestore ✅",
+      createdAt: serverTimestamp()
+    });
+
+    alert("Firestore write success ✅ Doc ID: " + ref.id);
+  } catch (e) {
+    console.error(e);
+    alert("Firestore write failed ❌ Check console");
+  }
+}
+
+/***********************
  * INITIAL LOAD
  ***********************/
 window.addEventListener("load", () => {
   const saved = localStorage.getItem("badmintonDarkMode");
   if (saved === "1") document.body.classList.add("dark");
+
   setGroupCodeUI({ showBox: false, codeText: "", enableGenerate: true });
   showStep(1);
 });
+
+/***********************
+ * EXPOSE FUNCTIONS for onclick
+ ***********************/
+window.showStep = showStep;
+window.goBack = goBack;
+window.goHome = goHome;
+
+window.toggleDarkMode = toggleDarkMode;
 
 window.checkGroupHistory = checkGroupHistory;
 window.generateGroupCode = generateGroupCode;
 window.goNextFromSetup = goNextFromSetup;
 
+window.startAddPlayer = startAddPlayer;
+window.cancelAddPlayer = cancelAddPlayer;
+window.saveNewPlayer = saveNewPlayer;
+
+window.toggleManagePlayers = toggleManagePlayers;
+window.saveEditedPlayer = saveEditedPlayer;
+window.deletePlayer = deletePlayer;
+
+window.toggleAvailability = toggleAvailability;
+window.setTeam = setTeam;
+
+window.goNextFromPlayersTeams = goNextFromPlayersTeams;
+
+window.regenerateMatches = regenerateMatches;
+window.saveSchedule = saveSchedule;
+window.goNextFromSchedule = goNextFromSchedule;
+
+window.letsPlay = letsPlay;
+window.saveMatchResult = saveMatchResult;
+window.concludePlay = concludePlay;
+window.saveResults = saveResults;
+
+window.resetAll = resetAll;
+window.resetGroupHistory = resetGroupHistory;
+
+window.testFirestoreWrite = testFirestoreWrite;
