@@ -163,6 +163,25 @@ function getEnteredGroupCode() {
   return (document.getElementById("groupCode").value || "").trim().toUpperCase();
 }
 
+async function saveGroupToCloud(groupObj) {
+  const db = window.firebaseDb;
+  const { doc, setDoc } = window.fs;
+
+  const ref = doc(db, "groups", groupObj.groupCode); // groupCode = document id
+  await setDoc(ref, groupObj, { merge: true });
+}
+
+async function fetchGroupFromCloud(groupCode) {
+  const db = window.firebaseDb;
+  const { doc, getDoc } = window.fs;
+
+  const ref = doc(db, "groups", groupCode);
+  const snap = await getDoc(ref);
+
+  if (!snap.exists()) return null;
+  return snap.data();
+}
+
 
 /***********************
  * SEEDED RNG
@@ -1397,65 +1416,70 @@ function saveResults() {
 /***********************
  * Fetch group history (Updated)
  ***********************/
-  function checkGroupHistory() {
-    const nameInput = document.getElementById("clubName").value;
-    const display = (nameInput || "").trim();
+   async function checkGroupHistory() {
+    const codeInput = document.getElementById("groupCode").value;
+    const groupCode = (codeInput || "").trim().toUpperCase();
   
-    if (!display) {
+    if (!groupCode) {
       document.getElementById("historyMessage").textContent =
-        "Please enter a group name to fetch history.";
+        "Please enter a Group Code (example: BDM-482913).";
       return;
     }
   
-    const key = normalizeGroupName(display);
-    const groups = getGroupsStore();
-    const existingGroup = groups[key];
-  
-    // ✅ If group does NOT exist at all
-    if (!existingGroup) {
+    // Firebase not loaded yet
+    if (!window.firebaseDb || !window.firebaseAuth?.currentUser) {
       document.getElementById("historyMessage").textContent =
-        "Group not found. You can generate a new Group Code.";
-  
-      document.getElementById("historySection").style.display = "none";
-      document.getElementById("upcomingSection").style.display = "none";
-      document.getElementById("newGroupSetup").style.display = "block";
-  
-      // ✅ Allow generate for new group
-      setGroupCodeUI({ showBox: false, codeText: "", enableGenerate: true });
+        "Firebase not ready yet. Please refresh the page.";
       return;
     }
   
-    // ✅ Group exists → show group code and disable generate
-    const code = existingGroup.groupCode || "(missing)";
-    setGroupCodeUI({ showBox: true, codeText: code, enableGenerate: false });
+    document.getElementById("historyMessage").textContent = "🔄 Fetching from Cloud...";
   
-    const tournaments = existingGroup.tournaments || [];
-    const totalTournaments = tournaments.length;
+    try {
+      const cloudGroup = await fetchGroupFromCloud(groupCode);
   
-    // ✅ Group exists but no tournaments saved yet
-    if (totalTournaments === 0) {
+      // ❌ Group not found in Cloud
+      if (!cloudGroup) {
+        document.getElementById("historyMessage").textContent =
+          "Group not found in Cloud. You can generate a new Group Code.";
+  
+        document.getElementById("historySection").style.display = "none";
+        document.getElementById("upcomingSection").style.display = "none";
+        document.getElementById("newGroupSetup").style.display = "block";
+  
+        setGroupCodeUI({ showBox: false, codeText: "", enableGenerate: true });
+        return;
+      }
+  
+      // ✅ Group found
+      const groupName = cloudGroup.groupName || "(Unnamed Group)";
+  
+      // set global state
+      groupDisplayName = groupName;
+      groupKey = normalizeGroupName(groupName);
+      groupPlayers = cloudGroup.players || [];
+  
+      // update UI
+      document.getElementById("clubName").value = groupName;
+  
       document.getElementById("historyMessage").textContent =
-        "Group found ✅ but no tournaments saved yet.";
+        `✅ Group found in Cloud: ${groupName}`;
   
+      // disable generate button for existing group
+      setGroupCodeUI({ showBox: true, codeText: groupCode, enableGenerate: false });
+  
+      // for now hide history until tournaments are added to cloud
       document.getElementById("historySection").style.display = "none";
       document.getElementById("upcomingSection").style.display = "none";
       document.getElementById("newGroupSetup").style.display = "none";
-      return;
+  
+    } catch (err) {
+      console.error(err);
+      document.getElementById("historyMessage").textContent =
+        "❌ Error fetching group from Cloud. Check console for details.";
     }
-  
-    const completed = tournaments.filter(t => t.status === "COMPLETED").length;
-    const upcoming = tournaments.filter(t => t.status === "SCHEDULED" || t.status === "IN_PROGRESS").length;
-  
-    document.getElementById("historyMessage").textContent =
-      `Found ${totalTournaments} tournament(s): ${upcoming} upcoming/saved schedule(s), ${completed} completed.`;
-  
-    document.getElementById("newGroupSetup").style.display = "none";
-    document.getElementById("historySection").style.display = "block";
-  
-    showGroupHistory(key);
-    showTournamentStats();
-    showUpcomingTournaments(key);
   }
+
 
   function generateGroupCode() {
     const nameInput = document.getElementById("clubName").value;
