@@ -256,8 +256,11 @@
 <!-- Firebase (CDN) -->
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
-  import { getFirestore, doc, getDoc, setDoc, updateDoc, collection, addDoc, getDocs } 
-    from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
+  import {
+    getFirestore,
+    doc,
+    getDoc
+  } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
   import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
 
   const firebaseConfig = {
@@ -276,12 +279,11 @@
 
   await signInAnonymously(auth);
 
-  // ✅ expose to app.js
   window.firebaseDb = db;
   window.firebaseAuth = auth;
 
-  // ✅ Expose firestore helpers so app.js can call them
-  window.fs = { doc, getDoc, setDoc, updateDoc, collection, addDoc, getDocs };
+  // ✅ expose firestore helpers
+  window.fs = { doc, getDoc };
 </script>
 
 <!-- Bump version when needed to avoid cache -->
