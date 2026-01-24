@@ -259,7 +259,9 @@
   import {
     getFirestore,
     doc,
-    getDoc
+    getDoc,
+    setDoc,
+    serverTimestamp
   } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
   import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
 
@@ -283,7 +285,7 @@
   window.firebaseAuth = auth;
 
   // ✅ expose firestore helpers
-  window.fs = { doc, getDoc };
+  window.fs = { doc, getDoc, setDoc, serverTimestamp };
 </script>
 
 <!-- Bump version when needed to avoid cache -->
