@@ -770,84 +770,179 @@ function scheduleMatchesSmart(teamAPlayers, teamBPlayers, matchCount) {
   document.getElementById("playMatchesGrid").innerHTML = "";
 }
 
-function renderFairnessReport(playedCount, partnerCount, opponentCount) {
-  const div = document.getElementById("fairnessReport");
-  if (!div) return;
+function renderFairnessReport() {
+  const reportEl = document.getElementById("fairnessReport");
+  if (!reportEl) return;
 
-  const players = Object.keys(playedCount);
-
-  // Partner repeats total per player
-  const partnerRepeats = {};
-  players.forEach(p => (partnerRepeats[p] = 0));
-
-  Object.keys(partnerCount).forEach(k => {
-    const [p1, p2] = k.split("|");
-    const times = partnerCount[k];
-    if (times > 1) {
-      partnerRepeats[p1] += (times - 1);
-      partnerRepeats[p2] += (times - 1);
-    }
-  });
-
-  // Opponent repeats total per player
-  const opponentRepeats = {};
-  players.forEach(p => (opponentRepeats[p] = 0));
-
-  Object.keys(opponentCount).forEach(k => {
-    const [p1, p2] = k.split("|");
-    const times = opponentCount[k];
-    if (times > 1) {
-      opponentRepeats[p1] += (times - 1);
-      opponentRepeats[p2] += (times - 1);
-    }
-  });
-
-  // Build rows
-  const rows = players
-    .map(name => ({
-      name,
-      played: playedCount[name] || 0,
-      partnerRepeats: partnerRepeats[name] || 0,
-      opponentRepeats: opponentRepeats[name] || 0
-    }))
-    .sort((a, b) => b.played - a.played);
-
-  const minPlayed = Math.min(...rows.map(r => r.played));
-  const maxPlayed = Math.max(...rows.map(r => r.played));
-  const imbalance = maxPlayed - minPlayed;
-
-  let warning = "";
-  if (imbalance > 1) {
-    warning = `⚠️ Some players played more matches than others (difference = ${imbalance}).`;
-  } else {
-    warning = `✅ Match distribution looks balanced (difference = ${imbalance}).`;
+  if (!scheduledMatches || scheduledMatches.length === 0) {
+    reportEl.innerHTML = "<p>No matches generated yet.</p>";
+    return;
   }
 
-  let html = `
-    <p style="margin:0 0 10px 0; font-weight:bold;">${warning}</p>
+  // Build playerId -> best name (snapshot first, then group name)
+  const idToName = {};
+  
+  // 1) First: fill from groupPlayers (fallback)
+  (groupPlayers || []).forEach(p => {
+    if (!p?.id) return;
+    idToName[p.id] = p.name || "(Unknown Player)";
+  });
+  
+  // 2) Override using snapshots from scheduledMatches (highest priority)
+  (scheduledMatches || []).forEach(m => {
+    const aIds = m.teamAIds || [];
+    const bIds = m.teamBIds || [];
+    const aSnap = m.teamASnapshot || [];
+    const bSnap = m.teamBSnapshot || [];
+  
+    if (aIds[0]) idToName[aIds[0]] = aSnap[0] || idToName[aIds[0]] || "(Unknown Player)";
+    if (aIds[1]) idToName[aIds[1]] = aSnap[1] || idToName[aIds[1]] || "(Unknown Player)";
+  
+    if (bIds[0]) idToName[bIds[0]] = bSnap[0] || idToName[bIds[0]] || "(Unknown Player)";
+    if (bIds[1]) idToName[bIds[1]] = bSnap[1] || idToName[bIds[1]] || "(Unknown Player)";
+  });
+
+
+  // Counters
+  const played = {};         // playerId -> count
+  const partnerCount = {};   // "id1|id2" -> count
+  const opponentCount = {};  // "id1|id2" -> count
+
+  function key2(a, b) {
+    return [a, b].sort().join("|");
+  }
+
+  function inc(map, a, b) {
+    const k = key2(a, b);
+    map[k] = (map[k] || 0) + 1;
+  }
+
+  function safeIncPlayed(id) {
+    played[id] = (played[id] || 0) + 1;
+  }
+
+  // Walk through matches
+  scheduledMatches.forEach(m => {
+    const A = m.teamAIds || [];
+    const B = m.teamBIds || [];
+
+    if (A.length !== 2 || B.length !== 2) return;
+
+    // played count
+    safeIncPlayed(A[0]);
+    safeIncPlayed(A[1]);
+    safeIncPlayed(B[0]);
+    safeIncPlayed(B[1]);
+
+    // partner repeats
+    inc(partnerCount, A[0], A[1]);
+    inc(partnerCount, B[0], B[1]);
+
+    // opponent repeats (every A vs every B)
+    inc(opponentCount, A[0], B[0]);
+    inc(opponentCount, A[0], B[1]);
+    inc(opponentCount, A[1], B[0]);
+    inc(opponentCount, A[1], B[1]);
+  });
+
+  // Prepare played rows (include ALL current players, even 0 played)
+  const playedRows = (groupPlayers || []).map(p => {
+    return {
+      id: p.id,
+      name: p.name || "(Unknown)",
+      played: played[p.id] || 0
+    };
+  });
+
+  playedRows.sort((a, b) => b.played - a.played);
+
+  // Partner repeats list (only those > 1)
+  const partnerRepeats = Object.entries(partnerCount)
+    .filter(([_, c]) => c > 1)
+    .sort((a, b) => b[1] - a[1]);
+
+  // Opponent repeats list (only those > 1)
+  const opponentRepeats = Object.entries(opponentCount)
+    .filter(([_, c]) => c > 1)
+    .sort((a, b) => b[1] - a[1]);
+
+  // Helper for name display
+  function safeName(id) {
+    return idToName[id] || "(Unknown Player)";
+  }
+  
+  function pairToNames(pairKey) {
+      const [id1, id2] = pairKey.split("|");
+      return `${safeName(id1)} vs ${safeName(id2)}`;
+  }
+
+  function partnerToNames(pairKey) {
+    const [id1, id2] = pairKey.split("|");
+    return `${safeName(id1)} + ${safeName(id2)}`;
+  }
+
+  // Basic fairness metrics
+  const playedCounts = playedRows.map(r => r.played);
+  const maxPlayed = Math.max(...playedCounts);
+  const minPlayed = Math.min(...playedCounts);
+  const diff = maxPlayed - minPlayed;
+
+  const partnerWorst = partnerRepeats.length ? partnerRepeats[0][1] : 1;
+  const opponentWorst = opponentRepeats.length ? opponentRepeats[0][1] : 1;
+
+  reportEl.innerHTML = `
+    <div style="padding:12px; border:1px solid #eee; border-radius:12px; background:white;">
+      <p style="margin:0;"><strong>Match Balance:</strong> Max Played = ${maxPlayed}, Min Played = ${minPlayed}, Difference = ${diff}</p>
+      <p style="margin:6px 0 0 0;"><strong>Worst Partner Repeat:</strong> ${partnerWorst} time(s)</p>
+      <p style="margin:6px 0 0 0;"><strong>Worst Opponent Repeat:</strong> ${opponentWorst} time(s)</p>
+    </div>
+
+    <h4 style="margin-top:14px;">✅ Matches Played Per Player</h4>
     <table border="1" cellpadding="6">
       <tr>
         <th>Player</th>
         <th>Matches Played</th>
-        <th>Partner Repeats</th>
-        <th>Opponent Repeats</th>
       </tr>
+      ${playedRows.map(r => `
+        <tr>
+          <td>${escapeHtml(r.name)}</td>
+          <td>${r.played}</td>
+        </tr>
+      `).join("")}
+    </table>
+
+    <h4 style="margin-top:14px;">🤝 Partner Repeats (same team-mates)</h4>
+    ${partnerRepeats.length === 0 ? "<p>No partner repeats ✅</p>" : `
+      <table border="1" cellpadding="6">
+        <tr>
+          <th>Partner Pair</th>
+          <th>Times</th>
+        </tr>
+        ${partnerRepeats.map(([k, c]) => `
+          <tr>
+            <td>${escapeHtml(partnerToNames(k))}</td>
+            <td>${c}</td>
+          </tr>
+        `).join("")}
+      </table>
+    `}
+
+    <h4 style="margin-top:14px;">⚔️ Opponent Repeats</h4>
+    ${opponentRepeats.length === 0 ? "<p>No opponent repeats ✅</p>" : `
+      <table border="1" cellpadding="6">
+        <tr>
+          <th>Opponent Pair</th>
+          <th>Times</th>
+        </tr>
+        ${opponentRepeats.map(([k, c]) => `
+          <tr>
+            <td>${escapeHtml(pairToNames(k))}</td>
+            <td>${c}</td>
+          </tr>
+        `).join("")}
+      </table>
+    `}
   `;
-
-  rows.forEach(r => {
-    html += `
-      <tr>
-        <td>${escapeHtml(r.name)}</td>
-        <td>${r.played}</td>
-        <td>${r.partnerRepeats}</td>
-        <td>${r.opponentRepeats}</td>
-      </tr>
-    `;
-  });
-
-  html += `</table>`;
-
-  div.innerHTML = html;
 }
 
 function renderScheduleCardsFromIds() {
