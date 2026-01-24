@@ -230,9 +230,12 @@ function goNextFromSetup() {
     groups[groupKey] = {
       groupKey,
       groupName: groupDisplayName,
+      groupCode: makeGroupCode(),   // ✅ add group code
+      createdAt: new Date().toISOString(),
       players: groupPlayers,
       tournaments: []
     };
+
     setGroupsStore(groups);
   }
 
@@ -1957,5 +1960,6 @@ function toggleDarkMode() {
 window.addEventListener("load", () => {
   const saved = localStorage.getItem("badmintonDarkMode");
   if (saved === "1") document.body.classList.add("dark");
+  setGroupCodeUI({ showBox: false, codeText: "", enableGenerate: true });
   showStep(1);
 });
