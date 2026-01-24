@@ -40,7 +40,7 @@ function goBack() {
 function goHome() {
   showStep(1);
   if (groupKey) {
-    checkGroupHistory();
+    ();
   }
 }
 
@@ -1480,8 +1480,6 @@ function saveResults() {
     }
   }
 
-  window.checkGroupHistory = checkGroupHistory;
-
 async function generateGroupCode() {
   const nameInput = document.getElementById("clubName").value;
   const displayName = (nameInput || "").trim();
@@ -2001,3 +1999,6 @@ window.addEventListener("load", () => {
   setGroupCodeUI({ showBox: false, codeText: "", enableGenerate: true });
   showStep(1);
 });
+
+window.checkGroupHistory = checkGroupHistory;
+window.generateGroupCode = generateGroupCode;
