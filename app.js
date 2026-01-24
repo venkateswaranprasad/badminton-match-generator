@@ -72,6 +72,23 @@ function normalizeGroupName(name) {
   return (name || "").trim().toLowerCase();
 }
 
+function makeGroupCode() {
+  // Example: BDM-482913
+  const num = Math.floor(100000 + Math.random() * 900000);
+  return `BDM-${num}`;
+}
+
+function setGroupCodeUI({ showBox, codeText, enableGenerate }) {
+  const box = document.getElementById("groupCodeBox");
+  const txt = document.getElementById("groupCodeText");
+  const btn = document.getElementById("generateGroupCodeBtn");
+
+  if (box) box.style.display = showBox ? "block" : "none";
+  if (txt) txt.textContent = codeText || "";
+
+  if (btn) btn.disabled = !enableGenerate;
+}
+
 function uid() {
   return Date.now().toString(36) + Math.random().toString(36).slice(2);
 }
@@ -1380,6 +1397,38 @@ function checkGroupHistory() {
     return;
   }
 
+  if (!groups[key]) {
+    document.getElementById("historyMessage").textContent =
+      "Group not found. You can generate a new Group Code.";
+  
+    document.getElementById("historySection").style.display = "none";
+    document.getElementById("upcomingSection").style.display = "none";
+    document.getElementById("newGroupSetup").style.display = "block";
+  
+    // ✅ Allow generate for new group
+    setGroupCodeUI({ showBox: false, codeText: "", enableGenerate: true });
+  
+    return;
+  }
+
+    const total = (existingGroup.tournaments || []).length;
+
+  if (total === 0) {
+    document.getElementById("historyMessage").textContent =
+      "Group found ✅ but no tournaments saved yet.";
+  
+    document.getElementById("historySection").style.display = "none";
+    document.getElementById("upcomingSection").style.display = "none";
+  
+    document.getElementById("newGroupSetup").style.display = "none";
+    return;
+  }
+
+    // ✅ Group exists → show group code and disable generate
+  const existingGroup = groups[key];
+  const code = existingGroup.groupCode || "(missing)";
+  setGroupCodeUI({ showBox: true, codeText: code, enableGenerate: false });
+
   const total = (groups[key].tournaments || []).length;
   const completed = (groups[key].tournaments || []).filter(t => t.status === "COMPLETED").length;
   const upcoming = total - completed;
@@ -1393,6 +1442,53 @@ function checkGroupHistory() {
   showGroupHistory(key);
   showTournamentStats();
   showUpcomingTournaments(key);
+}
+
+  function generateGroupCode() {
+    const nameInput = document.getElementById("clubName").value;
+    const displayName = (nameInput || "").trim();
+  
+    if (!displayName) {
+      alert("Please enter a Group Name first.");
+      return;
+    }
+  
+    const key = normalizeGroupName(displayName);
+    const groups = getGroupsStore();
+  
+    // ✅ If group already exists, don't regenerate
+    if (groups[key]) {
+      alert("Group already exists ✅ Group Code cannot be generated again.");
+      setGroupCodeUI({
+        showBox: true,
+        codeText: groups[key].groupCode || "(missing)",
+        enableGenerate: false
+      });
+      return;
+    }
+  
+    const newCode = makeGroupCode();
+  
+    // ✅ Create the group skeleton
+    groups[key] = {
+      groupKey: key,
+      groupName: displayName,
+      groupCode: newCode,
+      createdAt: new Date().toISOString(),
+      players: [],
+      tournaments: []
+    };
+  
+    setGroupsStore(groups);
+  
+    // ✅ Update UI
+    document.getElementById("historyMessage").textContent =
+      "Group created ✅ Now go Next and add players.";
+  
+    setGroupCodeUI({ showBox: true, codeText: newCode, enableGenerate: false });
+  
+    // ✅ Hide new group count? (optional - you can keep visible)
+    document.getElementById("newGroupSetup").style.display = "block";
 }
 
 function showUpcomingTournaments(key) {
