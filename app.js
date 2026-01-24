@@ -965,6 +965,26 @@ function renderFairnessReport() {
   `;
 }
 
+import { collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
+window.testFirestoreWrite = async function () {
+  try {
+    if (!window.firebaseDb) {
+      alert("Firestore not ready ❌ window.firebaseDb missing");
+      return;
+    }
+
+    const ref = await addDoc(collection(window.firebaseDb, "testWrites"), {
+      message: "Hello Firestore ✅",
+      createdAt: serverTimestamp()
+    });
+
+    alert("Firestore write success ✅ Doc ID: " + ref.id);
+  } catch (e) {
+    console.error(e);
+    alert("Firestore write failed ❌ Check console");
+  }
+};
+
 function renderScheduleCardsFromIds() {
   const resultsDiv = document.getElementById("matchResults");
   if (!resultsDiv) return;
