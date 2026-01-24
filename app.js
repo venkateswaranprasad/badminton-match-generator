@@ -1480,53 +1480,57 @@ function saveResults() {
     }
   }
 
+  window.checkGroupHistory = checkGroupHistory;
 
-  function generateGroupCode() {
-    const nameInput = document.getElementById("clubName").value;
-    const displayName = (nameInput || "").trim();
-  
-    if (!displayName) {
-      alert("Please enter a Group Name first.");
-      return;
-    }
-  
-    const key = normalizeGroupName(displayName);
-    const groups = getGroupsStore();
-  
-    // ✅ If group already exists, don't regenerate
-    if (groups[key]) {
-      alert("Group already exists ✅ Group Code cannot be generated again.");
-      setGroupCodeUI({
-        showBox: true,
-        codeText: groups[key].groupCode || "(missing)",
-        enableGenerate: false
-      });
-      return;
-    }
-  
-    const newCode = makeGroupCode();
-  
-    // ✅ Create the group skeleton
-    groups[key] = {
-      groupKey: key,
-      groupName: displayName,
-      groupCode: newCode,
-      createdAt: new Date().toISOString(),
-      players: [],
-      tournaments: []
-    };
-  
-    setGroupsStore(groups);
-  
+async function generateGroupCode() {
+  const nameInput = document.getElementById("clubName").value;
+  const displayName = (nameInput || "").trim();
+
+  if (!displayName) {
+    alert("Please enter a Group Name first.");
+    return;
+  }
+
+  // Firebase ready check
+  if (!window.firebaseDb || !window.firebaseAuth?.currentUser) {
+    alert("Firebase not ready yet. Please refresh the page.");
+    return;
+  }
+
+  // Generate random group code like BDM-482913
+  const groupCode = "BDM-" + Math.floor(100000 + Math.random() * 900000);
+
+  try {
+    // ✅ Create group in Firestore
+    await createGroupInCloud(groupCode, displayName);
+
     // ✅ Update UI
-    document.getElementById("historyMessage").textContent =
-      "Group created ✅ Now go Next and add players.";
-  
-    setGroupCodeUI({ showBox: true, codeText: newCode, enableGenerate: false });
-  
-    // ✅ Hide new group count? (optional - you can keep visible)
-    document.getElementById("newGroupSetup").style.display = "block";
+    document.getElementById("groupCode").value = groupCode;
+    setGroupCodeUI({ showBox: true, codeText: groupCode, enableGenerate: false });
+
+    alert("✅ Group Code generated and saved to Cloud: " + groupCode);
+
+  } catch (err) {
+    console.error(err);
+    alert("❌ Failed to generate group code in Cloud. Check console.");
+  }
 }
+
+async function createGroupInCloud(groupCode, groupName) {
+  const db = window.firebaseDb;
+  const { doc, setDoc, serverTimestamp } = window.fs;
+
+  const ref = doc(db, "groups", groupCode);
+
+  await setDoc(ref, {
+    groupCode,
+    groupName,
+    createdAt: serverTimestamp(),
+    players: [],
+    tournaments: []
+  });
+}
+
 
 function showUpcomingTournaments(key) {
   const groups = getGroupsStore();
