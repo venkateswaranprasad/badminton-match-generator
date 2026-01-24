@@ -1999,3 +1999,5 @@ window.addEventListener("load", () => {
 
 window.checkGroupHistory = checkGroupHistory;
 window.generateGroupCode = generateGroupCode;
+window.goNextFromSetup = goNextFromSetup;
+
