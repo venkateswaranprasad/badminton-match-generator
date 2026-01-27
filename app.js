@@ -255,6 +255,22 @@ async function fetchGroupFromCloud(groupCode) {
   return snap.data();
 }
 
+async function fetchTournamentFromCloud(groupCode, tournamentId) {
+  requireFirebaseReady();
+  const { doc, getDoc } = window.fs;
+
+  const ref = doc(
+    window.firebaseDb,
+    "groups",
+    groupCode,
+    "tournaments",
+    String(tournamentId)
+  );
+
+  const snap = await getDoc(ref);
+  return snap.exists() ? snap.data() : null;
+}
+
 async function savePlayersToCloud(groupCode, players) {
   requireFirebaseReady();
   const db = window.firebaseDb;
@@ -1139,11 +1155,8 @@ async function saveScheduleToCloud(tournament) {
     if (!window.firebaseDb) return;
 
     tournament.groupCode = groupCodeActive;
-    const ref = getTournamentRef(
-      tournament.groupCode || groupKey,
-      tournament.tournamentId
-    );
-
+    const ref = getTournamentRef(groupCodeActive, tournament.tournamentId);
+    
     const { setDoc, serverTimestamp } = window.fs;
 
     await setDoc(ref, {
@@ -1409,6 +1422,56 @@ async function concludeTournamentInCloud() {
   }
 }
 
+async function startPlayFromSavedTournament(groupCode, tournamentId) {
+  try {
+    const tournament = await fetchTournamentFromCloud(groupCode, tournamentId);
+
+    if (!tournament) {
+      alert("Tournament not found in cloud.");
+      return;
+    }
+
+    // Restore global state
+    groupCodeActive = groupCode;
+    currentTournamentId = tournamentId;
+    scheduledMatches = tournament.scheduledMatches || [];
+
+    // Restore group & players
+    const group = await fetchGroupFromCloud(groupCode);
+    groupPlayers = group?.players || [];
+
+    // Restore availability and teams
+    availableTodayMap = {};
+    teamMap = {};
+
+    (tournament.availablePlayerIds || []).forEach(pid => {
+      availableTodayMap[pid] = true;
+    });
+
+    (tournament.teamAIds || []).forEach(pid => {
+      teamMap[pid] = "A";
+    });
+
+    (tournament.teamBIds || []).forEach(pid => {
+      teamMap[pid] = "B";
+    });
+
+    // Restore play date
+    const playDateEl = document.getElementById("playDate");
+    if (playDateEl && tournament.playDate) {
+      playDateEl.value = tournament.playDate;
+    }
+
+    // Jump straight to Play step
+    letsPlay();
+    showStep(4);
+
+  } catch (err) {
+    console.error(err);
+    alert("Failed to resume tournament. Check console.");
+  }
+}
+
 /***********************
  * RESET
  ***********************/
@@ -1524,6 +1587,7 @@ window.toggleAvailability = toggleAvailability;
 window.setTeam = setTeam;
 
 window.goNextFromPlayersTeams = goNextFromPlayersTeams;
+window.startPlayFromSavedTournament = startPlayFromSavedTournament;
 
 window.regenerateMatches = regenerateMatches;
 window.saveSchedule = saveSchedule;
