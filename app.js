@@ -9,6 +9,42 @@ function requireFirebaseReady() {
   }
 }
 
+function getTournamentRef(groupCode, tournamentId) {
+  const db = window.firebaseDb;
+  const { doc } = window.fs;
+  return doc(db, "groups", groupCode, "tournaments", String(tournamentId));
+}
+
+function getGroupRef(groupCode) {
+  const db = window.firebaseDb;
+  const { doc } = window.fs;
+  return doc(db, "groups", groupCode);
+}
+
+function computePlayerStatsFromResults() {
+  const stats = {};
+
+  const results = JSON.parse(localStorage.getItem(TEMP_RESULTS_KEY) || "[]")
+    .filter(r => r.groupKey === groupKey);
+
+  results.forEach(r => {
+    const allPlayers = [...r.teamAIds, ...r.teamBIds];
+    const winners = r.winnerTeam === "A" ? r.teamAIds : r.teamBIds;
+
+    allPlayers.forEach(pid => {
+      if (!stats[pid]) stats[pid] = { played: 0, won: 0, lost: 0 };
+      stats[pid].played++;
+    });
+
+    winners.forEach(pid => stats[pid].won++);
+    allPlayers
+      .filter(pid => !winners.includes(pid))
+      .forEach(pid => stats[pid].lost++);
+  });
+
+  return stats;
+}
+
 /***********************
  * WIZARD STATE
  ***********************/
@@ -1094,7 +1130,32 @@ function saveSchedule() {
 
   const homeBtn = document.getElementById("homeBtnStep3");
   if (homeBtn) homeBtn.disabled = false;
+
+  saveScheduleToCloud(tournamentRecord);
 }
+
+async function saveScheduleToCloud(tournament) {
+  try {
+    if (!window.firebaseDb) return;
+
+    const ref = getTournamentRef(
+      tournament.groupCode || groupKey,
+      tournament.tournamentId
+    );
+
+    const { setDoc, serverTimestamp } = window.fs;
+
+    await setDoc(ref, {
+      ...tournament,
+      cloudSavedAt: serverTimestamp()
+    });
+
+    console.log("✅ Schedule saved to cloud");
+  } catch (err) {
+    console.error("❌ Cloud save failed (schedule)", err);
+  }
+}
+
 
 function regenerateMatches() {
   const availablePlayers = groupPlayers.filter(p => availableTodayMap[p.id]);
@@ -1215,6 +1276,23 @@ function saveMatchResult(matchNo) {
   };
 
   storeTempMatchResult(resultObj);
+  saveMatchResultToCloud(resultObj);
+
+}
+
+async function saveMatchResultToCloud(result) {
+  try {
+    const { updateDoc, arrayUnion } = window.fs;
+    const ref = getTournamentRef(groupKey, currentTournamentId);
+
+    await updateDoc(ref, {
+      matchResults: arrayUnion(result)
+    });
+
+    console.log("☁️ Match result saved");
+  } catch (err) {
+    console.error("❌ Failed to save match result", err);
+  }
 }
 
 function concludePlay() {
@@ -1307,7 +1385,27 @@ function concludePlay() {
 
 function saveResults() {
   alert("✅ For now results are saved in local storage only. Cloud saving is next step.");
+  concludeTournamentInCloud();
   resetAll();
+}
+
+async function concludeTournamentInCloud() {
+  try {
+    const ref = getTournamentRef(groupKey, currentTournamentId);
+    const { updateDoc, serverTimestamp } = window.fs;
+
+    const playerStats = computePlayerStatsFromResults();
+
+    await updateDoc(ref, {
+      status: "COMPLETED",
+      playerStats,
+      completedAt: serverTimestamp()
+    });
+
+    console.log("🏁 Tournament concluded in cloud");
+  } catch (err) {
+    console.error("❌ Failed to conclude tournament", err);
+  }
 }
 
 /***********************
