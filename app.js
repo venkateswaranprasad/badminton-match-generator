@@ -1138,6 +1138,7 @@ async function saveScheduleToCloud(tournament) {
   try {
     if (!window.firebaseDb) return;
 
+    tournament.groupCode = groupCodeActive;
     const ref = getTournamentRef(
       tournament.groupCode || groupKey,
       tournament.tournamentId
@@ -1283,7 +1284,7 @@ function saveMatchResult(matchNo) {
 async function saveMatchResultToCloud(result) {
   try {
     const { updateDoc, arrayUnion } = window.fs;
-    const ref = getTournamentRef(groupKey, currentTournamentId);
+    const ref = getTournamentRef(groupCodeActive, currentTournamentId);
 
     await updateDoc(ref, {
       matchResults: arrayUnion(result)
@@ -1391,7 +1392,7 @@ function saveResults() {
 
 async function concludeTournamentInCloud() {
   try {
-    const ref = getTournamentRef(groupKey, currentTournamentId);
+    const ref = getTournamentRef(groupCodeActive, currentTournamentId);
     const { updateDoc, serverTimestamp } = window.fs;
 
     const playerStats = computePlayerStatsFromResults();
