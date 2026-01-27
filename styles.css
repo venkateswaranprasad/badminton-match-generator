@@ -601,3 +601,52 @@ body.dark #playMatchesGrid > div {
   border-color: rgba(255,255,255,0.08);
 }
 
+/* =========================
+   DARK MODE – Schedule Page Fix
+   ========================= */
+
+/* Tournament play date container */
+body.dark #step3 > div:first-of-type {
+  background: rgba(17, 24, 39, 0.95) !important;
+  border: 1px solid rgba(255,255,255,0.12);
+  color: #e5e7eb;
+}
+
+/* Match cards (ensure ALL layers go dark) */
+body.dark .schedule-card {
+  background: rgba(17, 24, 39, 0.9) !important;
+  border-color: rgba(255,255,255,0.12);
+}
+
+/* Match card text */
+body.dark .schedule-card * {
+  color: #e5e7eb;
+}
+
+/* Fairness report outer */
+body.dark #fairnessReport {
+  background: rgba(17, 24, 39, 0.95) !important;
+  border-color: rgba(255,255,255,0.12);
+  color: #e5e7eb;
+}
+
+/* Fairness report inner box */
+body.dark #fairnessReport > div {
+  background: rgba(17, 24, 39, 0.9) !important;
+  border-color: rgba(255,255,255,0.12);
+}
+
+/* Fairness tables */
+body.dark #fairnessReport table {
+  background: transparent;
+  color: #e5e7eb;
+}
+
+body.dark #fairnessReport th {
+  background: #1f3b6f;
+}
+
+body.dark #fairnessReport td {
+  border-color: rgba(255,255,255,0.12);
+}
+
