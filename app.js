@@ -1219,23 +1219,31 @@ function saveSchedule() {
 
 async function saveScheduleToCloud(tournament) {
   try {
-    if (!window.firebaseDb) return;
+    requireFirebaseReady();
 
-    tournament.groupCode = groupCodeActive;
-    const ref = getTournamentRef(groupCodeActive, tournament.tournamentId);
-    
-    const { setDoc, serverTimestamp } = window.fs;
+    const db = window.firebaseDb;
+    const { doc, setDoc, serverTimestamp } = window.fs;
+
+    const ref = doc(
+      db,
+      "groups",
+      groupCodeActive,
+      "tournaments",
+      String(tournament.tournamentId)
+    );
 
     await setDoc(ref, {
       ...tournament,
+      groupCode: groupCodeActive,
       cloudSavedAt: serverTimestamp()
     });
 
-    console.log("✅ Schedule saved to cloud");
+    console.log("☁️ Schedule saved to cloud");
   } catch (err) {
     console.error("❌ Cloud save failed (schedule)", err);
   }
 }
+
 
 
 function regenerateMatches() {
@@ -1491,7 +1499,7 @@ async function concludeTournamentInCloud() {
 
 async function startPlayFromSavedTournament(groupCode, tournamentId) {
   try {
-    const ref = getTournamentRef(groupCode, tournamentId);
+    const ref = getTournamentRef(groupCodeActive, currentTournamentId);
     const { getDoc } = window.fs;
 
     const snap = await getDoc(ref);
