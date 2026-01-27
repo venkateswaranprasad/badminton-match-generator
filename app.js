@@ -45,6 +45,23 @@ function computePlayerStatsFromResults() {
   return stats;
 }
 
+async function fetchTournamentsFromCloud(groupCode) {
+  requireFirebaseReady();
+  const db = window.firebaseDb;
+  const { collection, getDocs } = window.fs;
+
+  const colRef = collection(db, "groups", groupCode, "tournaments");
+  const snap = await getDocs(colRef);
+
+  const list = [];
+  snap.forEach(docSnap => {
+    list.push(docSnap.data());
+  });
+
+  return list;
+}
+
+
 /***********************
  * WIZARD STATE
  ***********************/
@@ -287,6 +304,54 @@ async function savePlayersToCloud(groupCode, players) {
   );
 }
 
+async function showUpcomingTournamentsFromCloud() {
+  if (!groupCodeActive) return;
+
+  const section = document.getElementById("upcomingSection");
+  const listEl = document.getElementById("upcomingList");
+
+  listEl.innerHTML = "";
+  section.style.display = "block";
+
+  try {
+    const tournaments = await fetchTournamentsFromCloud(groupCodeActive);
+
+    if (!tournaments.length) {
+      listEl.innerHTML = "<p>No tournaments found.</p>";
+      return;
+    }
+
+    tournaments
+      .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+      .forEach(t => {
+        const status = t.status || "SCHEDULED";
+        const playDate = t.playDate || "(no date)";
+
+        const canResume =
+          status === "SCHEDULED" || status === "IN_PROGRESS";
+
+        listEl.innerHTML += `
+          <div class="schedule-card">
+            <strong>${playDate}</strong>
+            <div>Status: <b>${status}</b></div>
+
+            ${
+              canResume
+                ? `<button onclick="startPlayFromSavedTournament(
+                      '${groupCodeActive}',
+                      ${t.tournamentId}
+                   )">▶ Resume Play</button>`
+                : `<span style="opacity:0.6;">Completed</span>`
+            }
+          </div>
+        `;
+      });
+  } catch (err) {
+    console.error(err);
+    listEl.innerHTML = "<p>Error loading tournaments.</p>";
+  }
+}
+
 /***********************
  * STEP 1: FETCH GROUP (Cloud)
  ***********************/
@@ -332,12 +397,14 @@ async function checkGroupHistory() {
     });
 
     if (msgEl) msgEl.textContent = `✅ Group found in Cloud: ${groupDisplayName}`;
-
+    
     setGroupCodeUI({ showBox: true, codeText: groupCode, enableGenerate: false });
+    // ✅ Show upcoming / saved tournaments from cloud
+    await showUpcomingTournamentsFromCloud();
+    document.getElementById("upcomingSection").style.display = "block";
 
     // Hide local history views for now (cloud tournaments later)
     document.getElementById("historySection").style.display = "none";
-    document.getElementById("upcomingSection").style.display = "none";
     document.getElementById("newGroupSetup").style.display = "none";
   } catch (err) {
     console.error(err);
@@ -1424,53 +1491,43 @@ async function concludeTournamentInCloud() {
 
 async function startPlayFromSavedTournament(groupCode, tournamentId) {
   try {
-    const tournament = await fetchTournamentFromCloud(groupCode, tournamentId);
+    const ref = getTournamentRef(groupCode, tournamentId);
+    const { getDoc } = window.fs;
 
-    if (!tournament) {
-      alert("Tournament not found in cloud.");
+    const snap = await getDoc(ref);
+    if (!snap.exists()) {
+      alert("Tournament not found.");
       return;
     }
 
-    // Restore global state
-    groupCodeActive = groupCode;
-    currentTournamentId = tournamentId;
-    scheduledMatches = tournament.scheduledMatches || [];
+    const t = snap.data();
 
-    // Restore group & players
-    const group = await fetchGroupFromCloud(groupCode);
-    groupPlayers = group?.players || [];
+    // restore state
+    currentTournamentId = t.tournamentId;
+    scheduledMatches = t.scheduledMatches || [];
+    groupKey = normalizeGroupName(groupDisplayName);
 
-    // Restore availability and teams
+    // restore teams & availability
     availableTodayMap = {};
     teamMap = {};
 
-    (tournament.availablePlayerIds || []).forEach(pid => {
+    (t.availablePlayerIds || []).forEach(pid => {
       availableTodayMap[pid] = true;
     });
 
-    (tournament.teamAIds || []).forEach(pid => {
-      teamMap[pid] = "A";
-    });
+    (t.teamAIds || []).forEach(pid => (teamMap[pid] = "A"));
+    (t.teamBIds || []).forEach(pid => (teamMap[pid] = "B"));
 
-    (tournament.teamBIds || []).forEach(pid => {
-      teamMap[pid] = "B";
-    });
-
-    // Restore play date
-    const playDateEl = document.getElementById("playDate");
-    if (playDateEl && tournament.playDate) {
-      playDateEl.value = tournament.playDate;
-    }
-
-    // Jump straight to Play step
+    renderScheduleCardsFromIds();
     letsPlay();
-    showStep(4);
 
+    showStep(4);
   } catch (err) {
     console.error(err);
-    alert("Failed to resume tournament. Check console.");
+    alert("Failed to resume tournament.");
   }
 }
+
 
 /***********************
  * RESET
