@@ -529,87 +529,75 @@ body.dark .note {
   border-left-color: rgba(245, 158, 11, 0.8);
 }
 
-/* ================================
-   DARK MODE FIX (DIFF-ONLY PATCH)
-   ================================ */
+/* =========================================
+   🌙 SAFE DARK MODE PATCH (NO LAYOUT DAMAGE)
+   ========================================= */
 
-/* Theme variables */
-:root {
-  --bg-card-fix: #ffffff;
-  --bg-soft-fix: rgba(255,255,255,0.7);
-  --border-soft-fix: #eee;
-  --text-main-fix: #222;
-}
-
-body.dark {
-  --bg-card-fix: rgba(17, 24, 39, 0.95);
-  --bg-soft-fix: rgba(255,255,255,0.05);
-  --border-soft-fix: rgba(255,255,255,0.12);
-  --text-main-fix: #e5e7eb;
-}
-
-/* ----- Cards & panels that were stuck white ----- */
+/* Cards */
 body.dark .step-card,
 body.dark .panel-card,
 body.dark .schedule-card,
-body.dark #playMatchesGrid > div,
-body.dark #matchResults > div,
 body.dark .add-player-panel,
-body.dark .sticky-counts {
-  background: var(--bg-card-fix) !important;
-  border-color: var(--border-soft-fix) !important;
-  color: var(--text-main-fix);
-}
-
-/* ----- Tables (main issue in screenshot) ----- */
-body.dark table {
-  background: var(--bg-card-fix) !important;
-  color: var(--text-main-fix);
-  border-color: var(--border-soft-fix);
-}
-
-body.dark th {
-  background: #1f3b6f !important;
-  color: #ffffff;
-}
-
-body.dark td {
-  background: transparent !important;
-  border-color: var(--border-soft-fix);
-}
-
-/* ----- Final summary section ----- */
-body.dark #finalSummarySection,
-body.dark #finalSummarySection * {
-  background-color: transparent;
-  color: var(--text-main-fix);
-}
-
-/* ----- Inputs inside dark cards ----- */
-body.dark input,
-body.dark select {
-  background: rgba(255,255,255,0.06);
-  color: var(--text-main-fix);
-  border-color: var(--border-soft-fix);
-}
-
-/* ----- Scroll containers ----- */
-body.dark #playersPanel,
-body.dark #teamAssignmentPanel {
-  background: var(--bg-soft-fix);
-}
-
-/* ===== Fairness Report ===== */
-#fairnessReport {
-  margin-top: 10px;
-  padding: 12px;
-  border: 1px solid #eee;
-  border-radius: 12px;
-  background: white;
-}
-
 body.dark #fairnessReport {
   background: rgba(17, 24, 39, 0.95);
   border-color: rgba(255,255,255,0.12);
+  color: #e5e7eb;
+}
+
+/* Player rows & team rows */
+body.dark #playersPanel > div,
+body.dark #teamAssignmentPanel > div {
+  background: rgba(255,255,255,0.04);
+  border-color: rgba(255,255,255,0.08);
+  box-shadow: none;
+}
+
+/* Scroll containers */
+body.dark #playersPanel,
+body.dark #teamAssignmentPanel {
+  background: rgba(255,255,255,0.03);
+  border-color: rgba(255,255,255,0.08);
+}
+
+/* Sticky header */
+body.dark .sticky-counts {
+  background: rgba(17, 24, 39, 0.95);
+  border-color: rgba(255,255,255,0.12);
+}
+
+/* Inputs */
+body.dark input,
+body.dark select {
+  background: rgba(255,255,255,0.06);
+  color: #e5e7eb;
+  border-color: rgba(255,255,255,0.15);
+}
+
+/* Disabled inputs */
+body.dark input:disabled,
+body.dark select:disabled {
+  background: rgba(255,255,255,0.03);
+  color: #9ca3af;
+}
+
+/* Tables */
+body.dark table {
+  background: transparent;
+  color: #e5e7eb;
+}
+
+body.dark th {
+  background: #1f3b6f;
+}
+
+body.dark td {
+  border-color: rgba(255,255,255,0.12);
+}
+
+/* Match cards */
+body.dark #matchResults > div,
+body.dark #playMatchesGrid > div {
+  background: rgba(255,255,255,0.04);
+  border-color: rgba(255,255,255,0.08);
 }
 
