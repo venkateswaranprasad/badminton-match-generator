@@ -262,6 +262,8 @@
   doc,
   getDoc,
   setDoc,
+  updateDoc,
+  arrayUnion,
   collection,
   addDoc,
   serverTimestamp
@@ -287,7 +289,16 @@
   window.firebaseAuth = auth;
 
   // ✅ expose firestore helpers
-  window.fs = { doc, getDoc, setDoc, collection, addDoc, serverTimestamp };
+  window.fs = {
+  doc,
+  getDoc,
+  setDoc,
+  updateDoc,
+  arrayUnion,
+  collection,
+  addDoc,
+  serverTimestamp
+};
 </script>
 
 <!-- Bump version when needed to avoid cache -->
