@@ -1160,10 +1160,10 @@ function saveSchedule() {
   const msgEl = document.getElementById("scheduleSaveMsg");
   if (msgEl) msgEl.textContent = "";
 
-  if (!groupKey) {
-    alert("Group not found. Please start from Setup.");
-    return;
-  }
+  if (!groupCodeActive) {
+  alert("Group Code not set. Please Fetch or Generate a Group Code first.");
+  return;
+}
 
   if (!scheduledMatches || scheduledMatches.length === 0) {
     alert("No schedule generated yet.");
@@ -1210,6 +1210,8 @@ function saveSchedule() {
   }
 
   alert("Schedule saved ✅");
+  console.log("☁️ Schedule saved to cloud at:", ref.path);
+  alert("☁️ Tournament saved to Cloud successfully!");
 
   const homeBtn = document.getElementById("homeBtnStep3");
   if (homeBtn) homeBtn.disabled = false;
@@ -1220,7 +1222,10 @@ function saveSchedule() {
 async function saveScheduleToCloud(tournament) {
   try {
     requireFirebaseReady();
-
+    if (!groupCodeActive) {
+      console.error("❌ groupCodeActive missing. Cloud save aborted.");
+      return;
+    }
     const db = window.firebaseDb;
     const { doc, setDoc, serverTimestamp } = window.fs;
 
