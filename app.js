@@ -1210,8 +1210,6 @@ function saveSchedule() {
   }
 
   alert("Schedule saved ✅");
-  console.log("☁️ Schedule saved to cloud at:", ref.path);
-  alert("☁️ Tournament saved to Cloud successfully!");
 
   const homeBtn = document.getElementById("homeBtnStep3");
   if (homeBtn) homeBtn.disabled = false;
@@ -1221,11 +1219,13 @@ function saveSchedule() {
 
 async function saveScheduleToCloud(tournament) {
   try {
+    
     requireFirebaseReady();
     if (!groupCodeActive) {
       console.error("❌ groupCodeActive missing. Cloud save aborted.");
       return;
     }
+    
     const db = window.firebaseDb;
     const { doc, setDoc, serverTimestamp } = window.fs;
 
@@ -1243,7 +1243,9 @@ async function saveScheduleToCloud(tournament) {
       cloudSavedAt: serverTimestamp()
     });
 
-    console.log("☁️ Schedule saved to cloud");
+    console.log("☁️ Schedule saved to cloud at:", ref.path);
+    alert("☁️ Tournament saved to Cloud successfully!");
+
   } catch (err) {
     console.error("❌ Cloud save failed (schedule)", err);
   }
