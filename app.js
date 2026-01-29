@@ -1247,6 +1247,24 @@ async function saveScheduleToCloud(tournament) {
       cloudSavedAt: serverTimestamp()
     });
 
+    // ✅ ALSO attach tournament reference to group document
+    const groupRef = doc(db, "groups", groupCodeActive);
+
+    await setDoc(
+      groupRef,
+      {
+        tournaments: [
+          {
+            tournamentId: String(tournament.tournamentId),
+            playDate: tournament.playDate,
+            status: tournament.status,
+            createdAt: tournament.createdAt
+          }
+        ]
+      },
+      { merge: true }
+    );
+
     console.log("☁️ Schedule saved to cloud at:", ref.path);
     alert("☁️ Tournament saved to Cloud successfully!");
 
