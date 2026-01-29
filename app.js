@@ -305,52 +305,77 @@ async function savePlayersToCloud(groupCode, players) {
 }
 
 async function showUpcomingTournamentsFromCloud() {
-  if (!groupCodeActive) return;
-
-  const section = document.getElementById("upcomingSection");
-  const listEl = document.getElementById("upcomingList");
-
-  listEl.innerHTML = "";
-  section.style.display = "block";
-
   try {
-    const tournaments = await fetchTournamentsFromCloud(groupCodeActive);
+    requireFirebaseReady();
 
-    if (!tournaments.length) {
-      listEl.innerHTML = "<p>No tournaments found.</p>";
+    const listEl = document.getElementById("upcomingList");
+    listEl.innerHTML = "";
+
+    const groupRef = getGroupRef(groupCodeActive);
+    const snap = await window.fs.getDoc(groupRef);
+
+    if (!snap.exists()) {
+      listEl.innerHTML = "<p>No group data found.</p>";
+      return;
+    }
+
+    const groupData = snap.data();
+    const tournaments = groupData.tournaments || [];
+
+    if (tournaments.length === 0) {
+      listEl.innerHTML = "<p>No saved tournaments yet.</p>";
       return;
     }
 
     tournaments
       .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
       .forEach(t => {
-        const status = t.status || "SCHEDULED";
-        const playDate = t.playDate || "(no date)";
-
-        const canResume =
-          status === "SCHEDULED" || status === "IN_PROGRESS";
-
         listEl.innerHTML += `
           <div class="schedule-card">
-            <strong>${playDate}</strong>
-            <div>Status: <b>${status}</b></div>
-
-            ${
-              canResume
-                ? `<button onclick="startPlayFromSavedTournament(
-                      '${groupCodeActive}',
-                      ${t.tournamentId}
-                   )">▶ Resume Play</button>`
-                : `<span style="opacity:0.6;">Completed</span>`
-            }
+            <strong>${t.playDate}</strong>
+            <div>Status: ${t.status}</div>
+            <button onclick="resumeTournament('${t.tournamentId}')">
+              ▶ Resume
+            </button>
           </div>
         `;
       });
+
   } catch (err) {
     console.error(err);
-    listEl.innerHTML = "<p>Error loading tournaments.</p>";
+    document.getElementById("upcomingList").innerHTML =
+      "<p style='color:red'>Error loading tournaments.</p>";
   }
 }
+
+async function resumeTournament(tournamentId) {
+  try {
+    requireFirebaseReady();
+
+    const ref = getTournamentRef(groupCodeActive, tournamentId);
+    const snap = await window.fs.getDoc(ref);
+
+    if (!snap.exists()) {
+      alert("Tournament not found in cloud.");
+      return;
+    }
+
+    const data = snap.data();
+
+    scheduledMatches = data.scheduledMatches || [];
+    currentTournamentId = tournamentId;
+
+    document.getElementById("playDate").value = data.playDate;
+
+    renderScheduleCardsFromIds();
+    showStep(3);
+
+  } catch (err) {
+    console.error(err);
+    alert("Failed to load tournament.");
+  }
+}
+
 
 /***********************
  * STEP 1: FETCH GROUP (Cloud)
@@ -1668,6 +1693,7 @@ window.toggleDarkMode = toggleDarkMode;
 window.checkGroupHistory = checkGroupHistory;
 window.generateGroupCode = generateGroupCode;
 window.goNextFromSetup = goNextFromSetup;
+window.resumeTournament = resumeTournament;
 
 window.startAddPlayer = startAddPlayer;
 window.cancelAddPlayer = cancelAddPlayer;
