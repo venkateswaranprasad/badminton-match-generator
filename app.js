@@ -374,8 +374,12 @@ async function checkGroupHistory() {
 
       document.getElementById("historySection").style.display = "none";
       document.getElementById("upcomingSection").style.display = "none";
-      document.getElementById("newGroupSetup").style.display = "block";
-
+      // ✅ If group has NO players yet → show player count setup
+      if (!cloudGroup.players || cloudGroup.players.length === 0) {
+        document.getElementById("newGroupSetup").style.display = "block";
+      } else {
+        document.getElementById("newGroupSetup").style.display = "none";
+      }
       setGroupCodeUI({ showBox: false, codeText: "", enableGenerate: true });
       return;
     }
