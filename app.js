@@ -309,52 +309,54 @@ async function showUpcomingTournamentsFromCloud() {
     requireFirebaseReady();
 
     const listEl = document.getElementById("upcomingList");
+    if (!listEl) return;
+
+    listEl.innerHTML = "🔄 Loading tournaments…";
+
+    const { collection, getDocs, query, orderBy } = window.fs;
+    const db = window.firebaseDb;
+
+    const q = query(
+      collection(db, "groups", groupCodeActive, "tournaments"),
+      orderBy("createdAt", "desc")
+    );
+
+    const snap = await getDocs(q);
+
+    if (snap.empty) {
+      listEl.innerHTML = "<p>No tournaments found.</p>";
+      return;
+    }
+
     listEl.innerHTML = "";
 
-    const groupRef = getGroupRef(groupCodeActive);
-    const snap = await window.fs.getDoc(groupRef);
+    snap.forEach(docSnap => {
+      const t = docSnap.data();
+      const tid = docSnap.id;
 
-    if (!snap.exists()) {
-      listEl.innerHTML = "<p>No group data found.</p>";
-      return;
-    }
+      listEl.innerHTML += `
+        <div class="schedule-card">
+          <strong>${t.playDate}</strong>
+          <div>Status: <strong>${t.status}</strong></div>
 
-    const groupData = snap.data();
-    const tournaments = groupData.tournaments || [];
-
-    if (tournaments.length === 0) {
-      listEl.innerHTML = "<p>No saved tournaments yet.</p>";
-      return;
-    }
-
-    tournaments
-      .sort((a, b) => {
-        const da = a.createdAt?.toDate ? a.createdAt.toDate() : new Date(a.createdAt);
-        const db = b.createdAt?.toDate ? b.createdAt.toDate() : new Date(b.createdAt);
-        return db - da;
-      })
-      .forEach(t => {
-        listEl.innerHTML += `
-          <div class="schedule-card">
-            <strong>${escapeHtml(t.playDate)}</strong>
-            <div>Status: ${t.status}</div>
-            ${
-              t.status === "COMPLETED"
-                ? `<span class="badge">🏁 Completed</span>`
-                : `<button onclick="resumeTournament('${t.tournamentId}')">
-                     ▶ Resume
-                   </button>`
-            }
-          </div>
-        `;
-      });
+          ${
+            t.status === "COMPLETED"
+              ? `<span class="badge">🏁 Completed</span>`
+              : `<button onclick="resumeTournament('${tid}')">
+                   ▶ Resume
+                 </button>`
+          }
+        </div>
+      `;
+    });
 
   } catch (err) {
     console.error(err);
     document.getElementById("upcomingList").innerHTML =
-      "<p style='color:red'>Error loading tournaments.</p>";
+      "<p>❌ Error loading tournaments.</p>";
   }
 }
+
 
 async function resumeTournament(tournamentId) {
   try {
