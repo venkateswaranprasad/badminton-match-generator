@@ -67,10 +67,6 @@ let currentStep = 1;
 let addPlayerMode = false;
 let currentTournamentId = null;
 
-/***********************
- * STORAGE KEYS (local cache)
- ***********************/
-const GROUPS_KEY = "badmintonGroups";
 
 /***********************
  * GLOBAL STATE (current group/tournament)
@@ -259,22 +255,6 @@ async function fetchGroupFromCloud(groupCode) {
 
   if (!snap.exists()) return null;
   return snap.data();
-}
-
-async function fetchTournamentFromCloud(groupCode, tournamentId) {
-  requireFirebaseReady();
-  const { doc, getDoc } = window.fs;
-
-  const ref = doc(
-    window.firebaseDb,
-    "groups",
-    groupCode,
-    "tournaments",
-    String(tournamentId)
-  );
-
-  const snap = await getDoc(ref);
-  return snap.exists() ? snap.data() : null;
 }
 
 async function savePlayersToCloud(groupCode, players) {
@@ -1242,13 +1222,13 @@ function saveSchedule() {
 
 async function saveScheduleToCloud(tournament) {
   try {
-    
     requireFirebaseReady();
+
     if (!groupCodeActive) {
       console.error("❌ groupCodeActive missing. Cloud save aborted.");
       return;
     }
-    
+
     const db = window.firebaseDb;
     const { doc, setDoc, serverTimestamp } = window.fs;
 
@@ -1266,24 +1246,6 @@ async function saveScheduleToCloud(tournament) {
       cloudSavedAt: serverTimestamp()
     });
 
-    // ✅ ALSO attach tournament reference to group document
-    const groupRef = doc(db, "groups", groupCodeActive);
-
-    await setDoc(
-      groupRef,
-      {
-        tournaments: [
-          {
-            tournamentId: String(tournament.tournamentId),
-            playDate: tournament.playDate,
-            status: tournament.status,
-            createdAt: tournament.createdAt
-          }
-        ]
-      },
-      { merge: true }
-    );
-
     console.log("☁️ Schedule saved to cloud at:", ref.path);
     alert("☁️ Tournament saved to Cloud successfully!");
 
@@ -1291,7 +1253,6 @@ async function saveScheduleToCloud(tournament) {
     console.error("❌ Cloud save failed (schedule)", err);
   }
 }
-
 
 
 function regenerateMatches() {
@@ -1569,51 +1530,12 @@ async function concludeTournamentInCloud() {
   }
 }
 
-async function startPlayFromSavedTournament(groupCode, tournamentId) {
-  try {
-    const ref = getTournamentRef(groupCodeActive, currentTournamentId);
-    const { getDoc } = window.fs;
-
-    const snap = await getDoc(ref);
-    if (!snap.exists()) {
-      alert("Tournament not found.");
-      return;
-    }
-
-    const t = snap.data();
-
-    // restore state
-    currentTournamentId = t.tournamentId;
-    scheduledMatches = t.scheduledMatches || [];
-    groupKey = normalizeGroupName(groupDisplayName);
-
-    // restore teams & availability
-    availableTodayMap = {};
-    teamMap = {};
-
-    (t.availablePlayerIds || []).forEach(pid => {
-      availableTodayMap[pid] = true;
-    });
-
-    (t.teamAIds || []).forEach(pid => (teamMap[pid] = "A"));
-    (t.teamBIds || []).forEach(pid => (teamMap[pid] = "B"));
-
-    renderScheduleCardsFromIds();
-    letsPlay();
-
-    showStep(4);
-  } catch (err) {
-    console.error(err);
-    alert("Failed to resume tournament.");
-  }
-}
-
 
 /***********************
  * RESET
  ***********************/
 function resetGroupHistory() {
-  alert("Reset Group History: this feature is still local-only in this version.");
+  alert("Group reset is disabled. Cloud data is preserved.");
 }
 
 function resetAll() {
