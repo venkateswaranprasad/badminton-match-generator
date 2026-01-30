@@ -369,11 +369,10 @@ async function resumeTournament(tournamentId) {
     const data = snap.data();
     
     // 🚫 Do not allow resume for completed tournaments
-    if (tournament.status === "COMPLETED") {
+    if (data.status === "COMPLETED") {
       alert("This tournament is already completed and cannot be resumed.");
       return;
     }
-
     scheduledMatches = data.scheduledMatches || [];
     currentTournamentId = tournamentId;
 
