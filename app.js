@@ -1421,7 +1421,7 @@ async function saveMatchResultToCloud(result) {
   }
 }
 
-function concludePlay() {
+async function concludePlay() {
   const ref = getTournamentRef(groupCodeActive, currentTournamentId);
   const snap = await window.fs.getDoc(ref);
   const data = snap.data();
