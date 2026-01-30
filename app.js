@@ -1422,92 +1422,101 @@ async function saveMatchResultToCloud(result) {
 }
 
 async function concludePlay() {
-  const ref = getTournamentRef(groupCodeActive, currentTournamentId);
-  const snap = await window.fs.getDoc(ref);
-  const data = snap.data();
-  const groupResults = data.matchResults || [];
+  try {
+    requireFirebaseReady();
 
-  if (groupResults.length === 0) {
-    alert("No match results found. Save scores for matches first.");
-    return;
-  }
+    if (!groupCodeActive || !currentTournamentId) {
+      alert("No active tournament.");
+      return;
+    }
 
-  let teamAWins = 0;
-  let teamBWins = 0;
+    const ref = getTournamentRef(groupCodeActive, currentTournamentId);
+    const snap = await window.fs.getDoc(ref);
 
-  groupResults.forEach(r => {
-    if (r.winnerTeam === "A") teamAWins++;
-    else teamBWins++;
-  });
+    if (!snap.exists()) {
+      alert("Tournament not found in cloud.");
+      return;
+    }
 
-  let tournamentWinner = "Draw";
-  if (teamAWins > teamBWins) tournamentWinner = "Team A";
-  else if (teamBWins > teamAWins) tournamentWinner = "Team B";
+    const data = snap.data();
+    const groupResults = data.matchResults || [];
 
-  document.getElementById("finalHeader").innerHTML =
-    `<strong>${tournamentWinner} won</strong>`;
+    if (groupResults.length === 0) {
+      alert("No match results found yet. Please save scores before concluding.");
+      return;
+    }
 
-  document.getElementById("overallSummary").innerHTML = `
-    <table border="1" cellpadding="6">
-      <tr>
-        <th>Team A</th>
-        <th>No. of matches won</th>
-        <th>Team B</th>
-        <th>No. of matches won</th>
-      </tr>
-      <tr>
-        <td>Team A</td>
-        <td>${teamAWins}</td>
-        <td>Team B</td>
-        <td>${teamBWins}</td>
-      </tr>
-    </table>
-  `;
+    let teamAWins = 0;
+    let teamBWins = 0;
 
-  let matchTable = `
-    <table border="1" cellpadding="6">
-      <tr>
-        <th>Team A Players</th>
-        <th>Team A Points</th>
-        <th>Team B Players</th>
-        <th>Team B Points</th>
-      </tr>
-  `;
-
-  groupResults.forEach(r => {
-    const aNames = r.teamAIds.map((id, i) => getPlayerNameById(id, r.teamASnapshot?.[i]));
-    const bNames = r.teamBIds.map((id, i) => getPlayerNameById(id, r.teamBSnapshot?.[i]));
-
-    matchTable += `
-      <tr>
-        <td>${aNames.join(" | ")}</td>
-        <td>${r.scoreA}</td>
-        <td>${bNames.join(" | ")}</td>
-        <td>${r.scoreB}</td>
-      </tr>
-    `;
-  });
-
-  matchTable += `</table>`;
-  document.getElementById("matchSummary").innerHTML = matchTable;
-
-  const playerWinCount = {};
-  groupResults.forEach(r => {
-    const winnersIds = r.winnerTeam === "A" ? r.teamAIds : r.teamBIds;
-    winnersIds.forEach(pid => {
-      playerWinCount[pid] = (playerWinCount[pid] || 0) + 1;
+    groupResults.forEach(r => {
+      if (r.winnerTeam === "A") teamAWins++;
+      else if (r.winnerTeam === "B") teamBWins++;
     });
-  });
 
-  const maxWins = Math.max(...Object.values(playerWinCount));
-  const topIds = Object.keys(playerWinCount).filter(pid => playerWinCount[pid] === maxWins);
-  const topNames = topIds.map(pid => getPlayerNameById(pid));
+    let tournamentWinner = "Draw";
+    if (teamAWins > teamBWins) tournamentWinner = "Team A";
+    else if (teamBWins > teamAWins) tournamentWinner = "Team B";
 
-  document.getElementById("playerOfTournament").innerHTML =
-    `Player of the tournament: <strong>${topNames.join(", ")}</strong> (${maxWins} wins)`;
+    document.getElementById("finalHeader").innerHTML =
+      `<strong>${tournamentWinner} won</strong>`;
 
-  document.getElementById("finalSummarySection").style.display = "block";
+    document.getElementById("overallSummary").innerHTML = `
+      <table border="1" cellpadding="6">
+        <tr>
+          <th>Team A</th>
+          <th>Matches Won</th>
+          <th>Team B</th>
+          <th>Matches Won</th>
+        </tr>
+        <tr>
+          <td>Team A</td>
+          <td>${teamAWins}</td>
+          <td>Team B</td>
+          <td>${teamBWins}</td>
+        </tr>
+      </table>
+    `;
+
+    let matchTable = `
+      <table border="1" cellpadding="6">
+        <tr>
+          <th>Team A Players</th>
+          <th>Score</th>
+          <th>Team B Players</th>
+          <th>Score</th>
+        </tr>
+    `;
+
+    groupResults.forEach(r => {
+      const aNames = r.teamAIds.map((id, i) =>
+        getPlayerNameById(id, r.teamASnapshot?.[i])
+      );
+      const bNames = r.teamBIds.map((id, i) =>
+        getPlayerNameById(id, r.teamBSnapshot?.[i])
+      );
+
+      matchTable += `
+        <tr>
+          <td>${aNames.join(" | ")}</td>
+          <td>${r.scoreA}</td>
+          <td>${bNames.join(" | ")}</td>
+          <td>${r.scoreB}</td>
+        </tr>
+      `;
+    });
+
+    matchTable += `</table>`;
+    document.getElementById("matchSummary").innerHTML = matchTable;
+
+    document.getElementById("finalSummarySection").style.display = "block";
+
+  } catch (err) {
+    console.error(err);
+    alert("Failed to conclude tournament.");
+  }
 }
+
 
 async function saveResults() {
   alert("✅ Results saved locally. Syncing to cloud…");
