@@ -59,6 +59,39 @@ async function fetchTournamentsFromCloud(groupCode) {
   return list;
 }
 
+function renderPlayerStatsFromCloud(playerStats = {}) {
+  const container = document.getElementById("playerStatsTable");
+  if (!container) return;
+
+  if (!playerStats || Object.keys(playerStats).length === 0) {
+    container.innerHTML = "<p>No player stats available.</p>";
+    return;
+  }
+
+  const rows = Object.entries(playerStats).map(([pid, stats]) => {
+    const name = getPlayerNameById(pid);
+    return `
+      <tr>
+        <td>${escapeHtml(name)}</td>
+        <td>${stats.played}</td>
+        <td>${stats.won}</td>
+        <td>${stats.lost}</td>
+      </tr>
+    `;
+  });
+
+  container.innerHTML = `
+    <table border="1" cellpadding="6">
+      <tr>
+        <th>Player</th>
+        <th>Played</th>
+        <th>Won</th>
+        <th>Lost</th>
+      </tr>
+      ${rows.join("")}
+    </table>
+  `;
+}
 
 /***********************
  * WIZARD STATE
@@ -1484,6 +1517,9 @@ async function concludePlay() {
     const data = snap.data();
     let groupResults = data.matchResults || [];
 
+    // ✅ NEW: render player stats
+    renderPlayerStatsFromCloud(data.playerStats || {});
+
     if (groupResults.length === 0) {
       // ⏳ wait once and retry (last write safety)
       await new Promise(r => setTimeout(r, 500));
@@ -1582,6 +1618,8 @@ async function saveResults() {
   alert("✅ Results saved locally. Syncing to cloud…");
 
   await concludeTournamentInCloud(); // ✅ WAIT for cloud update
+  document.getElementById("playerStatsView").style.display = "block";
+  document.getElementById("tournamentStatsView").style.display = "none";
 
   // Refresh home so completed status is reflected
   showStep(1);
