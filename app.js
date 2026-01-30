@@ -1355,7 +1355,7 @@ function letsPlay() {
   document.getElementById("finalSummarySection").style.display = "none";
 }
 
-function saveMatchResult(matchNo) {
+async function saveMatchResult(matchNo) {
   const scoreAEl = document.getElementById(`scoreA${matchNo}`);
   const scoreBEl = document.getElementById(`scoreB${matchNo}`);
   if (!scoreAEl || !scoreBEl) return;
@@ -1374,7 +1374,7 @@ function saveMatchResult(matchNo) {
   }
 
   if (scoreA === scoreB) {
-    alert("Draw is not allowed. Please enter a winning score.");
+    alert("Draw is not allowed.");
     return;
   }
 
@@ -1383,13 +1383,7 @@ function saveMatchResult(matchNo) {
 
   const winnerTeam = scoreA > scoreB ? "A" : "B";
 
-  const msgEl = document.getElementById(`saveMsg${matchNo}`);
-  msgEl.textContent = `Saved ✅ Team ${winnerTeam} won`;
-  msgEl.style.fontWeight = "bold";
-
   const resultObj = {
-    groupKey,
-    groupName: groupDisplayName,
     matchNo,
     teamAIds: match.teamAIds,
     teamBIds: match.teamBIds,
@@ -1401,10 +1395,16 @@ function saveMatchResult(matchNo) {
     savedAt: new Date().toISOString()
   };
 
-  storeTempMatchResult(resultObj);
-  saveMatchResultToCloud(resultObj);
+  const msgEl = document.getElementById(`saveMsg${matchNo}`);
+  msgEl.textContent = "Saving…";
 
+  // ✅ WAIT for cloud save
+  await saveMatchResultToCloud(resultObj);
+
+  msgEl.textContent = `Saved ✅ Team ${winnerTeam} won`;
+  msgEl.style.fontWeight = "bold";
 }
+
 
 async function saveMatchResultToCloud(result) {
   try {
@@ -1439,7 +1439,21 @@ async function concludePlay() {
     }
 
     const data = snap.data();
-    const groupResults = data.matchResults || [];
+    let groupResults = data.matchResults || [];
+
+    if (groupResults.length === 0) {
+      // ⏳ wait once and retry (last write safety)
+      await new Promise(r => setTimeout(r, 500));
+    
+      const retrySnap = await window.fs.getDoc(ref);
+      const retryData = retrySnap.data();
+      groupResults = retryData.matchResults || [];
+    }
+    
+    if (groupResults.length === 0) {
+      alert("No match results found yet. Please save scores before concluding.");
+      return;
+    }
 
     if (groupResults.length === 0) {
       alert("No match results found yet. Please save scores before concluding.");
