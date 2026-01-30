@@ -359,12 +359,6 @@ async function showUpcomingTournamentsFromCloud() {
 async function resumeTournament(tournamentId) {
   try {
     requireFirebaseReady();
-    // 🚫 Do not allow resume for completed tournaments
-    if (tournament.status === "COMPLETED") {
-      alert("This tournament is already completed and cannot be resumed.");
-      return;
-    }
-
     const ref = getTournamentRef(groupCodeActive, tournamentId);
     const snap = await window.fs.getDoc(ref);
 
@@ -372,8 +366,13 @@ async function resumeTournament(tournamentId) {
       alert("Tournament not found in cloud.");
       return;
     }
-
     const data = snap.data();
+    
+    // 🚫 Do not allow resume for completed tournaments
+    if (tournament.status === "COMPLETED") {
+      alert("This tournament is already completed and cannot be resumed.");
+      return;
+    }
 
     scheduledMatches = data.scheduledMatches || [];
     currentTournamentId = tournamentId;
