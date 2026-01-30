@@ -1537,19 +1537,24 @@ function concludePlay() {
   document.getElementById("finalSummarySection").style.display = "block";
 }
 
-function saveResults() {
-  alert("✅ For now results are saved in local storage only. Cloud saving is next step.");
-  concludeTournamentInCloud();
-  // Refresh home data so completed status is reflected
-  setTimeout(() => {
-    showStep(1);
-    checkGroupHistory();
-    }, 300);
+async function saveResults() {
+  alert("✅ Results saved locally. Syncing to cloud…");
+
+  await concludeTournamentInCloud(); // ✅ WAIT for cloud update
+
+  // Refresh home so completed status is reflected
+  showStep(1);
+  await checkGroupHistory();
   resetAll();
 }
 
+
 async function concludeTournamentInCloud() {
   try {
+    if (!groupCodeActive || !currentTournamentId) {
+      console.error("Missing groupCodeActive or currentTournamentId");
+      return;
+    }
     const ref = getTournamentRef(groupCodeActive, currentTournamentId);
     const { updateDoc, serverTimestamp } = window.fs;
 
@@ -1566,6 +1571,7 @@ async function concludeTournamentInCloud() {
     console.error("❌ Failed to conclude tournament", err);
   }
 }
+
 
 async function startPlayFromSavedTournament(groupCode, tournamentId) {
   try {
