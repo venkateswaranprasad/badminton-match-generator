@@ -21,13 +21,10 @@ function getGroupRef(groupCode) {
   return doc(db, "groups", groupCode);
 }
 
-function computePlayerStatsFromResults() {
+function computePlayerStatsFromResults(matchResults = []) {
   const stats = {};
 
-  const results = JSON.parse(localStorage.getItem(TEMP_RESULTS_KEY) || "[]")
-    .filter(r => r.groupKey === groupKey);
-
-  results.forEach(r => {
+  matchResults.forEach(r => {
     const allPlayers = [...r.teamAIds, ...r.teamBIds];
     const winners = r.winnerTeam === "A" ? r.teamAIds : r.teamBIds;
 
@@ -44,6 +41,7 @@ function computePlayerStatsFromResults() {
 
   return stats;
 }
+
 
 async function fetchTournamentsFromCloud(groupCode) {
   requireFirebaseReady();
@@ -73,7 +71,6 @@ let currentTournamentId = null;
  * STORAGE KEYS (local cache)
  ***********************/
 const GROUPS_KEY = "badmintonGroups";
-const TEMP_RESULTS_KEY = "badmintonMatchResults";
 
 /***********************
  * GLOBAL STATE (current group/tournament)
@@ -150,14 +147,6 @@ function getTodayDateString() {
   const mm = String(d.getMonth() + 1).padStart(2, "0");
   const dd = String(d.getDate()).padStart(2, "0");
   return `${yyyy}-${mm}-${dd}`;
-}
-
-function getGroupsStore() {
-  return JSON.parse(localStorage.getItem(GROUPS_KEY) || "{}");
-}
-
-function setGroupsStore(obj) {
-  localStorage.setItem(GROUPS_KEY, JSON.stringify(obj));
 }
 
 function getMatchesPerPlayer() {
@@ -1236,14 +1225,6 @@ function saveSchedule() {
     matchResults: []
   };
 
-  const groups = getGroupsStore();
-  groups[groupKey] = groups[groupKey] || { groupKey, groupName: groupDisplayName, tournaments: [], players: groupPlayers };
-  groups[groupKey].players = groupPlayers;
-  groups[groupKey].tournaments = groups[groupKey].tournaments || [];
-  groups[groupKey].tournaments.push(tournamentRecord);
-
-  setGroupsStore(groups);
-
   currentTournamentId = tournamentRecord.tournamentId;
 
   if (msgEl) {
@@ -1374,17 +1355,6 @@ function letsPlay() {
   document.getElementById("finalSummarySection").style.display = "none";
 }
 
-function storeTempMatchResult(resultObj) {
-  const existing = JSON.parse(localStorage.getItem(TEMP_RESULTS_KEY) || "[]");
-
-  const filtered = existing.filter(
-    r => !(r.groupKey === resultObj.groupKey && r.matchNo === resultObj.matchNo)
-  );
-
-  filtered.push(resultObj);
-  localStorage.setItem(TEMP_RESULTS_KEY, JSON.stringify(filtered));
-}
-
 function saveMatchResult(matchNo) {
   const scoreAEl = document.getElementById(`scoreA${matchNo}`);
   const scoreBEl = document.getElementById(`scoreB${matchNo}`);
@@ -1452,10 +1422,10 @@ async function saveMatchResultToCloud(result) {
 }
 
 function concludePlay() {
-  const allResults = JSON.parse(localStorage.getItem(TEMP_RESULTS_KEY) || "[]");
-  const groupResults = allResults
-    .filter(r => r.groupKey === groupKey)
-    .sort((a, b) => a.matchNo - b.matchNo);
+  const ref = getTournamentRef(groupCodeActive, currentTournamentId);
+  const snap = await window.fs.getDoc(ref);
+  const data = snap.data();
+  const groupResults = data.matchResults || [];
 
   if (groupResults.length === 0) {
     alert("No match results found. Save scores for matches first.");
@@ -1550,17 +1520,16 @@ async function saveResults() {
   resetAll();
 }
 
-
 async function concludeTournamentInCloud() {
   try {
-    if (!groupCodeActive || !currentTournamentId) {
-      console.error("Missing groupCodeActive or currentTournamentId");
-      return;
-    }
     const ref = getTournamentRef(groupCodeActive, currentTournamentId);
-    const { updateDoc, serverTimestamp } = window.fs;
+    const { updateDoc, serverTimestamp, getDoc } = window.fs;
 
-    const playerStats = computePlayerStatsFromResults();
+    const snap = await getDoc(ref);
+    if (!snap.exists()) return;
+
+    const data = snap.data();
+    const playerStats = computePlayerStatsFromResults(data.matchResults || []);
 
     await updateDoc(ref, {
       status: "COMPLETED",
@@ -1573,7 +1542,6 @@ async function concludeTournamentInCloud() {
     console.error("❌ Failed to conclude tournament", err);
   }
 }
-
 
 async function startPlayFromSavedTournament(groupCode, tournamentId) {
   try {
