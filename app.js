@@ -273,6 +273,88 @@ async function savePlayersToCloud(groupCode, players) {
   );
 }
 
+async function showPlayerStats() {
+  try {
+    requireFirebaseReady();
+
+    if (!groupCodeActive) {
+      alert("Please fetch a group first.");
+      return;
+    }
+
+    const container = document.getElementById("playerStatsTable");
+    if (!container) return;
+
+    container.innerHTML = "🔄 Loading player stats from cloud…";
+
+    const { collection, getDocs } = window.fs;
+    const db = window.firebaseDb;
+
+    const snap = await getDocs(
+      collection(db, "groups", groupCodeActive, "tournaments")
+    );
+
+    if (snap.empty) {
+      container.innerHTML = "<p>No tournaments found.</p>";
+      return;
+    }
+
+    // ✅ Aggregate stats across ALL completed tournaments
+    const aggregated = {};
+
+    snap.forEach(docSnap => {
+      const t = docSnap.data();
+      if (t.status !== "COMPLETED" || !t.playerStats) return;
+
+      Object.entries(t.playerStats).forEach(([pid, stats]) => {
+        if (!aggregated[pid]) {
+          aggregated[pid] = { played: 0, won: 0, lost: 0 };
+        }
+        aggregated[pid].played += stats.played || 0;
+        aggregated[pid].won += stats.won || 0;
+        aggregated[pid].lost += stats.lost || 0;
+      });
+    });
+
+    if (Object.keys(aggregated).length === 0) {
+      container.innerHTML = "<p>No completed tournaments yet.</p>";
+      return;
+    }
+
+    // ✅ Build table rows
+    const rows = Object.entries(aggregated)
+      .map(([pid, s]) => {
+        const name = getPlayerNameById(pid);
+        return `
+          <tr>
+            <td>${escapeHtml(name)}</td>
+            <td>${s.played}</td>
+            <td>${s.won}</td>
+            <td>${s.lost}</td>
+          </tr>
+        `;
+      })
+      .join("");
+
+    container.innerHTML = `
+      <table border="1" cellpadding="6">
+        <tr>
+          <th>Player</th>
+          <th>Matches Played</th>
+          <th>Wins</th>
+          <th>Losses</th>
+        </tr>
+        ${rows}
+      </table>
+    `;
+
+  } catch (err) {
+    console.error(err);
+    document.getElementById("playerStatsTable").innerHTML =
+      "<p>❌ Failed to load player stats.</p>";
+  }
+}
+
 async function showUpcomingTournamentsFromCloud() {
   try {
     requireFirebaseReady();
@@ -1634,6 +1716,7 @@ window.checkGroupHistory = checkGroupHistory;
 window.generateGroupCode = generateGroupCode;
 window.goNextFromSetup = goNextFromSetup;
 window.resumeTournament = resumeTournament;
+window.showPlayerStats = showPlayerStats;
 
 window.startAddPlayer = startAddPlayer;
 window.cancelAddPlayer = cancelAddPlayer;
