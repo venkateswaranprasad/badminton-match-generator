@@ -1455,8 +1455,11 @@ async function concludePlay() {
       return;
     }
 
-    if (groupResults.length === 0) {
-      alert("No match results found yet. Please save scores before concluding.");
+    const totalMatches = scheduledMatches.length;
+    const savedMatches = (data.matchResults || []).length;
+
+    if (savedMatches < totalMatches) {
+      alert(`Please save all match scores (${savedMatches}/${totalMatches}).`);
       return;
     }
 
