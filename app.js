@@ -1768,8 +1768,6 @@ window.toggleAvailability = toggleAvailability;
 window.setTeam = setTeam;
 
 window.goNextFromPlayersTeams = goNextFromPlayersTeams;
-window.startPlayFromSavedTournament = startPlayFromSavedTournament;
-
 window.regenerateMatches = regenerateMatches;
 window.saveSchedule = saveSchedule;
 window.goNextFromSchedule = goNextFromSchedule;
