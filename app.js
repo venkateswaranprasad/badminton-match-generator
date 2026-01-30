@@ -1388,9 +1388,15 @@ function regenerateMatches() {
 }
 
 function goNextFromSchedule() {
+  if (!currentTournamentId) {
+    alert("Please save the schedule before starting play.");
+    return;
+  }
+
   letsPlay();
   showStep(4);
 }
+
 
 /***********************
  * STEP 4: PLAY (temp storage)
@@ -1432,6 +1438,12 @@ function letsPlay() {
 }
 
 async function saveMatchResult(matchNo) {
+
+  if (!currentTournamentId) {
+    alert("Tournament not saved. Please save the schedule first.");
+    return;
+  }
+
   const scoreAEl = document.getElementById(`scoreA${matchNo}`);
   const scoreBEl = document.getElementById(`scoreB${matchNo}`);
   if (!scoreAEl || !scoreBEl) return;
@@ -1498,6 +1510,12 @@ async function saveMatchResultToCloud(result) {
 }
 
 async function concludePlay() {
+
+  if (!currentTournamentId) {
+    alert("Tournament not saved. Cannot conclude play.");
+    return;
+  }
+
   try {
     requireFirebaseReady();
 
