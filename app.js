@@ -328,15 +328,23 @@ async function showUpcomingTournamentsFromCloud() {
     }
 
     tournaments
-      .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+      .sort((a, b) => {
+        const da = a.createdAt?.toDate ? a.createdAt.toDate() : new Date(a.createdAt);
+        const db = b.createdAt?.toDate ? b.createdAt.toDate() : new Date(b.createdAt);
+        return db - da;
+      })
       .forEach(t => {
         listEl.innerHTML += `
           <div class="schedule-card">
-            <strong>${t.playDate}</strong>
+            <strong>${escapeHtml(t.playDate)}</strong>
             <div>Status: ${t.status}</div>
-            <button onclick="resumeTournament('${t.tournamentId}')">
-              ▶ Resume
-            </button>
+            ${
+              t.status === "COMPLETED"
+                ? `<span class="badge">🏁 Completed</span>`
+                : `<button onclick="resumeTournament('${t.tournamentId}')">
+                     ▶ Resume
+                   </button>`
+            }
           </div>
         `;
       });
@@ -351,6 +359,11 @@ async function showUpcomingTournamentsFromCloud() {
 async function resumeTournament(tournamentId) {
   try {
     requireFirebaseReady();
+    // 🚫 Do not allow resume for completed tournaments
+    if (tournament.status === "COMPLETED") {
+      alert("This tournament is already completed and cannot be resumed.");
+      return;
+    }
 
     const ref = getTournamentRef(groupCodeActive, tournamentId);
     const snap = await window.fs.getDoc(ref);
@@ -1529,6 +1542,11 @@ function concludePlay() {
 function saveResults() {
   alert("✅ For now results are saved in local storage only. Cloud saving is next step.");
   concludeTournamentInCloud();
+  // Refresh home data so completed status is reflected
+  setTimeout(() => {
+    showStep(1);
+    checkGroupHistory();
+    }, 300);
   resetAll();
 }
 
