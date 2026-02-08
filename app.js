@@ -1286,72 +1286,78 @@ function renderFairnessReport() {
 /***********************
  * STEP 3: SAVE SCHEDULE (local only for now)
  ***********************/
-function saveSchedule() {
+async function saveSchedule() {
   const msgEl = document.getElementById("scheduleSaveMsg");
   if (msgEl) msgEl.textContent = "";
 
   if (!groupCodeActive) {
-  alert("Group Code not set. Please Fetch or Generate a Group Code first.");
-  return;
-}
+    alert("Please fetch or generate a Group Code first.");
+    return;
+  }
 
   if (!scheduledMatches || scheduledMatches.length === 0) {
     alert("No schedule generated yet.");
     return;
   }
 
-  const playDateEl = document.getElementById("playDate");
-  const playDate = (playDateEl?.value || "").trim();
+  const playDate = document.getElementById("playDate")?.value;
   if (!playDate) {
     alert("Please select a Tournament Play Date.");
     return;
   }
 
   const availablePlayers = groupPlayers.filter(p => availableTodayMap[p.id]);
-  const teamAIds = availablePlayers.filter(p => teamMap[p.id] === "A").map(p => p.id);
-  const teamBIds = availablePlayers.filter(p => teamMap[p.id] === "B").map(p => p.id);
+  if (availablePlayers.length < 4) {
+    alert("At least 4 available players required.");
+    return;
+  }
 
-  const tournamentRecord = {
-    tournamentId: Date.now(),
-    createdAt: new Date().toISOString(),
+  const teamAIds = availablePlayers
+    .filter(p => teamMap[p.id] === "A")
+    .map(p => p.id);
+
+  const teamBIds = availablePlayers
+    .filter(p => teamMap[p.id] === "B")
+    .map(p => p.id);
+
+  if (teamAIds.length < 2 || teamBIds.length < 2) {
+    alert("Each team must have at least 2 players.");
+    return;
+  }
+
+  // 🔑 Generate tournamentId ONCE
+  const tournamentId = Date.now().toString();
+
+  const tournamentData = {
+    tournamentId,
     playDate,
-    status: "SCHEDULED",
     matchesPerPlayer: getMatchesPerPlayer(),
     availablePlayerIds: availablePlayers.map(p => p.id),
     teamAIds,
     teamBIds,
-    scheduledMatches,
-    matchResults: []
+    scheduledMatches
   };
 
-  currentTournamentId = tournamentRecord.tournamentId;
+  // 🔒 Save to cloud FIRST
+  await saveScheduleToCloud(tournamentData);
 
-  // ✅ Enable Let's Play button now that tournament is saved
-  const playBtn = document.getElementById("letsPlayBtn");
-  if (playBtn) playBtn.disabled = false;
-
+  // ✅ Only after successful save
+  currentTournamentId = tournamentId;
 
   if (msgEl) {
     msgEl.textContent = `✅ Schedule saved for ${playDate}`;
     msgEl.style.color = "green";
   }
 
-  alert("Schedule saved ✅");
+  const playBtn = document.getElementById("letsPlayBtn");
+  if (playBtn) playBtn.disabled = false;
 
-  const homeBtn = document.getElementById("homeBtnStep3");
-  if (homeBtn) homeBtn.disabled = false;
-
-  saveScheduleToCloud(tournamentRecord);
+  alert("Tournament saved to Cloud ✅");
 }
 
 async function saveScheduleToCloud(tournament) {
   try {
     requireFirebaseReady();
-
-    if (!groupCodeActive) {
-      console.error("❌ groupCodeActive missing. Cloud save aborted.");
-      return;
-    }
 
     const db = window.firebaseDb;
     const { doc, setDoc, serverTimestamp } = window.fs;
@@ -1361,38 +1367,41 @@ async function saveScheduleToCloud(tournament) {
       "groups",
       groupCodeActive,
       "tournaments",
-      String(tournament.tournamentId)
+      tournament.tournamentId
     );
 
+    // ✅ STRICT, COMPLETE SCHEMA
     await setDoc(ref, {
-      tournamentId: String(tournament.tournamentId),
+      tournamentId: tournament.tournamentId,
       groupCode: groupCodeActive,
-    
-      createdAt: tournament.createdAt,
+
+      createdAt: new Date().toISOString(),
       cloudSavedAt: serverTimestamp(),
-    
+
       playDate: tournament.playDate,
       matchesPerPlayer: tournament.matchesPerPlayer,
-    
-      availablePlayerIds: tournament.availablePlayerIds || [],
-      teamAIds: tournament.teamAIds || [],
-      teamBIds: tournament.teamBIds || [],
-    
-      scheduledMatches: tournament.scheduledMatches || [],
-    
-      // 🔑 CRITICAL FIXES
+
+      availablePlayerIds: tournament.availablePlayerIds,
+      teamAIds: tournament.teamAIds,
+      teamBIds: tournament.teamBIds,
+
+      scheduledMatches: tournament.scheduledMatches,
+
+      // 🔒 Lifecycle fields (NON-NEGOTIABLE)
       status: "SCHEDULED",
       matchResults: [],
       playerStats: {}
     });
 
-    console.log("☁️ Schedule saved to cloud at:", ref.path);
-    alert("☁️ Tournament saved to Cloud successfully!");
+    console.log("☁️ Tournament initialized in cloud:", ref.path);
 
   } catch (err) {
-    console.error("❌ Cloud save failed (schedule)", err);
+    console.error("❌ Failed to save tournament", err);
+    alert("Failed to save tournament to cloud. Check console.");
+    throw err; // IMPORTANT
   }
 }
+
 
 
 function regenerateMatches() {
