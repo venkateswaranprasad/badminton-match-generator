@@ -974,6 +974,10 @@ async function goNextFromPlayersTeams() {
   const homeBtn = document.getElementById("homeBtnStep3");
   if (homeBtn) homeBtn.disabled = true;
 
+  // 🚫 Disable Let's Play until schedule is saved
+  const playBtn = document.getElementById("letsPlayBtn");
+  if (playBtn) playBtn.disabled = true;
+
   showStep(3);
 }
 
@@ -1557,6 +1561,35 @@ async function concludePlay() {
       return;
     }
 
+    // 🏅 Compute Player of the Tournament (runtime)
+    const playerWinCount = {};
+    
+    groupResults.forEach(r => {
+      const winners =
+        r.winnerTeam === "A" ? r.teamAIds :
+        r.winnerTeam === "B" ? r.teamBIds :
+        [];
+    
+      winners.forEach(pid => {
+        playerWinCount[pid] = (playerWinCount[pid] || 0) + 1;
+      });
+    });
+    
+    let playerOfTournamentText = "N/A";
+    
+    if (Object.keys(playerWinCount).length > 0) {
+      const maxWins = Math.max(...Object.values(playerWinCount));
+      const topIds = Object.keys(playerWinCount)
+        .filter(pid => playerWinCount[pid] === maxWins);
+    
+      const topNames = topIds.map(pid => getPlayerNameById(pid));
+      playerOfTournamentText =
+        `${topNames.join(", ")} (${maxWins} wins)`;
+    }
+    
+    document.getElementById("playerOfTournament").innerHTML =
+      `<strong>${playerOfTournamentText}</strong>`;
+
     const totalMatches = scheduledMatches.length;
     const savedMatches = (data.matchResults || []).length;
 
@@ -1718,6 +1751,9 @@ function resetAll() {
   groupPlayers = [];
 
   setGroupCodeUI({ showBox: false, codeText: "", enableGenerate: true });
+
+  const playBtn = document.getElementById("letsPlayBtn");
+  if (playBtn) playBtn.disabled = true;
 
   showStep(1);
 }
