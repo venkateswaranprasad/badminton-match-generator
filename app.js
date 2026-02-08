@@ -1365,9 +1365,25 @@ async function saveScheduleToCloud(tournament) {
     );
 
     await setDoc(ref, {
-      ...tournament,
+      tournamentId: String(tournament.tournamentId),
       groupCode: groupCodeActive,
-      cloudSavedAt: serverTimestamp()
+    
+      createdAt: tournament.createdAt,
+      cloudSavedAt: serverTimestamp(),
+    
+      playDate: tournament.playDate,
+      matchesPerPlayer: tournament.matchesPerPlayer,
+    
+      availablePlayerIds: tournament.availablePlayerIds || [],
+      teamAIds: tournament.teamAIds || [],
+      teamBIds: tournament.teamBIds || [],
+    
+      scheduledMatches: tournament.scheduledMatches || [],
+    
+      // 🔑 CRITICAL FIXES
+      status: "SCHEDULED",
+      matchResults: [],
+      playerStats: {}
     });
 
     console.log("☁️ Schedule saved to cloud at:", ref.path);
@@ -1504,6 +1520,12 @@ async function saveMatchResult(matchNo) {
 
 
 async function saveMatchResultToCloud(result) {
+
+  if (!currentTournamentId) {
+    alert("Tournament not saved. Please save schedule first.");
+    return;
+  }
+
   try {
     const { updateDoc, arrayUnion } = window.fs;
     const ref = getTournamentRef(groupCodeActive, currentTournamentId);
