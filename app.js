@@ -1322,6 +1322,11 @@ function saveSchedule() {
 
   currentTournamentId = tournamentRecord.tournamentId;
 
+  // ✅ Enable Let's Play button now that tournament is saved
+  const playBtn = document.getElementById("letsPlayBtn");
+  if (playBtn) playBtn.disabled = false;
+
+
   if (msgEl) {
     msgEl.textContent = `✅ Schedule saved for ${playDate}`;
     msgEl.style.color = "green";
