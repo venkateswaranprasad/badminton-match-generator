@@ -222,6 +222,28 @@ function setGroupCodeUI({ showBox, codeText, enableGenerate }) {
   if (btn) btn.disabled = !enableGenerate;
 }
 
+function assignTeamsRandomlyPreview() {
+  const available = groupPlayers.filter(p => availableTodayMap[p.id]);
+  if (available.length < 4) {
+    alert("At least 4 available players required.");
+    return;
+  }
+
+  // Clear previous assignments
+  available.forEach(p => (teamMap[p.id] = ""));
+
+  const shuffled = [...available];
+  shuffleArray(shuffled, Math.random);
+
+  const mid = Math.ceil(shuffled.length / 2);
+  shuffled.forEach((p, idx) => {
+    teamMap[p.id] = idx < mid ? "A" : "B";
+  });
+
+  renderTeamAssignmentPanel();
+}
+
+
 /***********************
  * PLAYER HELPERS (ID based)
  ***********************/
@@ -612,6 +634,11 @@ function goNextFromSetup() {
       });
     }
 
+    // ✅ SAVE placeholders immediately
+    if (groupCodeActive) {
+      await savePlayersToCloud(groupCodeActive, groupPlayers);
+    }
+
     // init today maps
     availableTodayMap = {};
     teamMap = {};
@@ -708,6 +735,11 @@ function updateManageButtonState() {
 }
 
 async function saveEditedPlayer(playerId) {
+
+  if (currentTournamentId) {
+    alert("Players cannot be modified after tournament creation.");
+   return;
+  }
   const nameEl = document.getElementById(`pname_${playerId}`);
   const handEl = document.getElementById(`phand_${playerId}`);
 
@@ -747,6 +779,11 @@ async function saveEditedPlayer(playerId) {
 }
 
 async function deletePlayer(playerId) {
+
+  if (currentTournamentId) {
+    alert("Players cannot be modified after tournament creation.");
+    return;
+  }
   const p = groupPlayers.find(x => x.id === playerId);
   if (!p) return;
 
@@ -812,6 +849,12 @@ function cancelAddPlayer() {
 }
 
 async function saveNewPlayer() {
+
+  if (currentTournamentId) {
+    alert("Players cannot be modified after tournament creation.");
+   return;
+  }
+  
   const name = (document.getElementById("newPlayerName").value || "").trim();
   const hand = document.getElementById("newPlayerHand").value;
 
@@ -1327,6 +1370,9 @@ async function saveSchedule() {
 
   // 🔑 Generate tournamentId ONCE
   const tournamentId = Date.now().toString();
+
+  const shuffleBtn = document.getElementById("shuffleTeamsBtn");
+  if (shuffleBtn) shuffleBtn.disabled = true;
 
   const tournamentData = {
     tournamentId,
