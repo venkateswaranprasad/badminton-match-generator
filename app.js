@@ -254,7 +254,7 @@ function assignTeamsRandomlyPreview() {
   });
 
   // Remaining players stay unassigned (bench)
-  renderTeamAssignmentPanel();
+  Panel();
 }
 
 
@@ -933,8 +933,30 @@ function renderTeamAssignmentPanel() {
 
   availablePlayers.forEach(p => {
     const assigned = teamMap[p.id] || "";
+    const color =
+      assigned === "A" ? "#1976d2" :
+      assigned === "B" ? "#ef6c00" :
+      "#ccc";
     panel.innerHTML += `
-      <div style="padding:6px 0; border-bottom:1px solid #eee;">
+      <div style="
+        padding:8px 10px;
+        border-bottom:1px solid #eee;
+        display:flex;
+        align-items:center;
+        gap:10px;
+        border-left:6px solid ${color};
+        ">
+        <span style="
+        font-weight:bold;
+        color:white;
+        background:${color};
+        padding:2px 8px;
+        border-radius:12px;
+        min-width:70px;
+        text-align:center;
+        ">
+        ${assigned ? `Team ${assigned}` : "Unassigned"}
+        </span>
         <strong>${escapeHtml(p.name || "(Unnamed)")}</strong> (${p.hand})
         <label style="margin-left:10px;">
           <input type="radio" name="team_${p.id}" value="A"
