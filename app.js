@@ -110,6 +110,77 @@ function renderPlayerStatsFromCloud(playerStats = {}) {
   `;
 }
 
+async function showGroupStatsOnHome(groupCode) {
+  try {
+    requireFirebaseReady();
+
+    const { collection, getDocs } = window.fs;
+    const db = window.firebaseDb;
+
+    const snap = await getDocs(
+      collection(db, "groups", groupCode, "tournaments")
+    );
+
+    if (snap.empty) return;
+
+    const aggregated = {};
+
+    snap.forEach(docSnap => {
+      const t = docSnap.data();
+      if (t.status !== "COMPLETED" || !t.playerStats) return;
+
+      Object.entries(t.playerStats).forEach(([pid, s]) => {
+        if (!aggregated[pid]) {
+          aggregated[pid] = { played: 0, won: 0, lost: 0 };
+        }
+        aggregated[pid].played += s.played || 0;
+        aggregated[pid].won += s.won || 0;
+        aggregated[pid].lost += s.lost || 0;
+      });
+    });
+
+    if (Object.keys(aggregated).length === 0) return;
+
+    renderPlayerStatsIntoContainer(
+      aggregated,
+      "groupStatsHomeTable"
+    );
+
+    document.getElementById("groupStatsHome").style.display = "block";
+  } catch (err) {
+    console.error("❌ Failed to load group stats on home", err);
+  }
+}
+
+function renderPlayerStatsIntoContainer(playerStats, containerId) {
+  const container = document.getElementById(containerId);
+  if (!container) return;
+
+  const rows = Object.entries(playerStats).map(([pid, stats]) => {
+    const name = getPlayerNameById(pid);
+    return `
+      <tr>
+        <td>${escapeHtml(name)}</td>
+        <td>${stats.played}</td>
+        <td>${stats.won}</td>
+        <td>${stats.lost}</td>
+      </tr>
+    `;
+  });
+
+  container.innerHTML = `
+    <table border="1" cellpadding="6">
+      <tr>
+        <th>Player</th>
+        <th>Played</th>
+        <th>Won</th>
+        <th>Lost</th>
+      </tr>
+      ${rows.join("")}
+    </table>
+  `;
+}
+
 /***********************
  * WIZARD STATE
  ***********************/
@@ -631,6 +702,8 @@ async function checkGroupHistory() {
     groupDisplayName = cloudGroup.groupName || "(Unnamed Group)";
     groupKey = normalizeGroupName(groupDisplayName);
     groupPlayers = cloudGroup.players || [];
+    // ✅ Show overall stats on Home (if any completed tournaments exist)
+    await showGroupStatsOnHome(groupCode);
 
     document.getElementById("clubName").value = groupDisplayName;
 
@@ -2130,6 +2203,7 @@ window.resumeTournament = resumeTournament;
 window.showPlayerStats = showPlayerStats;
 window.assignTeamsRandomlyPreview = assignTeamsRandomlyPreview;
 window.viewCompletedTournament = viewCompletedTournament;
+window.shareGroupPlayerStats = shareGroupPlayerStats;
 window.shareGroupPlayerStats = shareGroupPlayerStats;
 
 window.startAddPlayer = startAddPlayer;
