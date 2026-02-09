@@ -1374,6 +1374,10 @@ async function saveSchedule() {
   const shuffleBtn = document.getElementById("shuffleTeamsBtn");
   if (shuffleBtn) shuffleBtn.disabled = true;
 
+  // ✅ Re-enable Home button now that tournament is saved
+  const homeBtn = document.getElementById("homeBtnStep3");
+  if (homeBtn) homeBtn.disabled = false;
+
   const tournamentData = {
     tournamentId,
     playDate,
