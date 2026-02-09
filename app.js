@@ -242,13 +242,21 @@ function assignTeamsRandomlyPreview() {
   const shuffled = [...available];
   shuffleArray(shuffled, Math.random);
 
-  const mid = Math.ceil(shuffled.length / 2);
-  shuffled.forEach((p, idx) => {
-    teamMap[p.id] = idx < mid ? "A" : "B";
+  const teamSize = Math.floor(shuffled.length / 2);
+
+  // Assign equal teams
+  shuffled.slice(0, teamSize).forEach(p => {
+  teamMap[p.id] = "A";
   });
 
+  shuffled.slice(teamSize, teamSize * 2).forEach(p => {
+    teamMap[p.id] = "B";
+  });
+
+  // Remaining players stay unassigned (bench)
   renderTeamAssignmentPanel();
 }
+
 
 function isTournamentInProgress() {
   return Boolean(currentTournamentId);
