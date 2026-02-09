@@ -325,6 +325,32 @@ function setStep4Mode(mode) {
   }
 }
 
+function computePlayerOfTournament(matchResults = []) {
+  const winCount = {};
+
+  matchResults.forEach(r => {
+    const winners =
+      r.winnerTeam === "A" ? r.teamAIds :
+      r.winnerTeam === "B" ? r.teamBIds :
+      [];
+
+    winners.forEach(pid => {
+      winCount[pid] = (winCount[pid] || 0) + 1;
+    });
+  });
+
+  if (Object.keys(winCount).length === 0) {
+    return "N/A";
+  }
+
+  const maxWins = Math.max(...Object.values(winCount));
+  const topIds = Object.keys(winCount).filter(
+    pid => winCount[pid] === maxWins
+  );
+
+  const names = topIds.map(pid => getPlayerNameById(pid));
+  return `${names.join(", ")} (${maxWins} wins)`;
+}
 
 /***********************
  * WIZARD STATE
@@ -956,6 +982,12 @@ async function viewCompletedTournament(tournamentId) {
     // Render results & stats
     renderPlayerStatsFromCloud(data.playerStats || {});
     renderCompletedMatchSummary(data.matchResults || []);
+
+    const potText = computePlayerOfTournament(data.matchResults || []);
+    const potEl = document.getElementById("playerOfTournament");
+    if (potEl) {
+      potEl.innerHTML = `<strong>${potText}</strong>`;
+    }
 
     showStep(4); // reuse final summary UI
     setStep4Mode("VIEW"); 
