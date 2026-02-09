@@ -1891,6 +1891,7 @@ window.generateGroupCode = generateGroupCode;
 window.goNextFromSetup = goNextFromSetup;
 window.resumeTournament = resumeTournament;
 window.showPlayerStats = showPlayerStats;
+window.assignTeamsRandomlyPreview = assignTeamsRandomlyPreview;
 
 window.startAddPlayer = startAddPlayer;
 window.cancelAddPlayer = cancelAddPlayer;
