@@ -595,7 +595,7 @@ async function generateGroupCode() {
 /***********************
  * STEP 1 -> STEP 2
  ***********************/
-function goNextFromSetup() {
+async function goNextFromSetup() {
   const nameInput = document.getElementById("clubName").value;
   groupDisplayName = (nameInput || "").trim();
 
