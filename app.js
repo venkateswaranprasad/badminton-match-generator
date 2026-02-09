@@ -254,7 +254,7 @@ function assignTeamsRandomlyPreview() {
   });
 
   // Remaining players stay unassigned (bench)
-  Panel();
+  renderTeamAssignmentPanel();
 }
 
 
