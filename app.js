@@ -244,31 +244,47 @@ function renderPlayerStatsIntoContainer(playerStats, containerId) {
 }
 
 function setStep4Mode(mode) {
+  step4Mode = mode;
+
+  // Step 4 elements
   const playGrid = document.getElementById("playMatchesGrid");
   const concludeBtn = document.querySelector(
     "#step4 button[onclick='concludePlay()']"
   );
-
   const finalSection = document.getElementById("finalSummarySection");
 
+  // Step 3 buttons (must NEVER appear in VIEW mode)
+  const saveScheduleBtn = document.querySelector(
+    "#step3 button[onclick='saveSchedule()']"
+  );
+  const letsPlayBtn = document.querySelector(
+    "#step3 button[onclick='goNextFromSchedule()']"
+  );
+
   if (mode === "VIEW") {
-    // Hide live play controls
+    // Hide play UI
     if (playGrid) playGrid.style.display = "none";
     if (concludeBtn) concludeBtn.style.display = "none";
 
     // Show final summary
     if (finalSection) finalSection.style.display = "block";
+
+    // Force-hide Step 3 actions
+    if (saveScheduleBtn) saveScheduleBtn.style.display = "none";
+    if (letsPlayBtn) letsPlayBtn.style.display = "none";
   }
 
   if (mode === "PLAY") {
-    // Show live play controls
     if (playGrid) playGrid.style.display = "block";
     if (concludeBtn) concludeBtn.style.display = "inline-block";
 
-    // Final summary hidden until conclude
     if (finalSection) finalSection.style.display = "none";
+
+    if (saveScheduleBtn) saveScheduleBtn.style.display = "";
+    if (letsPlayBtn) letsPlayBtn.style.display = "";
   }
 }
+
 
 
 /***********************
@@ -278,6 +294,7 @@ let currentStep = 1;
 let addPlayerMode = false;
 let currentTournamentId = null;
 let hasPlayStarted = false;
+let step4Mode = "PLAY"; // PLAY | VIEW
 
 /***********************
  * GLOBAL STATE (current group/tournament)
@@ -326,7 +343,21 @@ function showStep(stepNo) {
 
 
 function goBack() {
-  if (currentStep > 1) showStep(currentStep - 1);
+  // Step 4 special handling
+  if (currentStep === 4) {
+    if (step4Mode === "VIEW") {
+      showStep(5); // Tournament History
+      return;
+    }
+    if (step4Mode === "PLAY") {
+      showStep(3);
+      return;
+    }
+  }
+
+  if (currentStep > 1) {
+    showStep(currentStep - 1);
+  }
 }
 
 function goHome() {
