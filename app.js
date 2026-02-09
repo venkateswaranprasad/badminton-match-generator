@@ -287,46 +287,43 @@ function renderPlayerStatsIntoContainer(playerStats, containerId) {
 
 function setStep4Mode(mode) {
   step4Mode = mode;
+  const titleEl = document.getElementById("step4Title");
 
-  // Step 4 elements
   const playGrid = document.getElementById("playMatchesGrid");
   const concludeBtn = document.querySelector(
     "#step4 button[onclick='concludePlay()']"
   );
   const finalSection = document.getElementById("finalSummarySection");
 
-  // Step 3 buttons (must NEVER appear in VIEW mode)
-  const saveScheduleBtn = document.querySelector(
-    "#step3 button[onclick='saveSchedule()']"
+  const saveResultsBtn = document.querySelector(
+    "#finalSummarySection button[onclick='saveResults()']"
   );
-  const letsPlayBtn = document.querySelector(
-    "#step3 button[onclick='goNextFromSchedule()']"
+  const newTournamentBtn = document.querySelector(
+    "#finalSummarySection button[onclick='resetAll()']"
   );
 
   if (mode === "VIEW") {
-    // Hide play UI
+    if (titleEl) titleEl.textContent = "Tournament Stats";
+
     if (playGrid) playGrid.style.display = "none";
     if (concludeBtn) concludeBtn.style.display = "none";
-
-    // Show final summary
     if (finalSection) finalSection.style.display = "block";
 
-    // Force-hide Step 3 actions
-    if (saveScheduleBtn) saveScheduleBtn.style.display = "none";
-    if (letsPlayBtn) letsPlayBtn.style.display = "none";
+    if (saveResultsBtn) saveResultsBtn.style.display = "none";
+    if (newTournamentBtn) newTournamentBtn.style.display = "none";
   }
 
   if (mode === "PLAY") {
+    if (titleEl) titleEl.textContent = "Play";
+
     if (playGrid) playGrid.style.display = "block";
     if (concludeBtn) concludeBtn.style.display = "inline-block";
-
     if (finalSection) finalSection.style.display = "none";
 
-    if (saveScheduleBtn) saveScheduleBtn.style.display = "";
-    if (letsPlayBtn) letsPlayBtn.style.display = "";
+    if (saveResultsBtn) saveResultsBtn.style.display = "";
+    if (newTournamentBtn) newTournamentBtn.style.display = "";
   }
 }
-
 
 
 /***********************
