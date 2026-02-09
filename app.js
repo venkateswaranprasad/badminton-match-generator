@@ -130,9 +130,14 @@ function renderPlayerStatsFromCloud(playerStats = {}) {
 
   const rows = Object.entries(playerStats).map(([pid, stats]) => {
     const name = getPlayerNameById(pid);
+    const isPOT = potIds.includes(pid);
+  
     return `
       <tr>
-        <td>${escapeHtml(name)}</td>
+        <td>
+          ${escapeHtml(name)}
+          ${isPOT ? '<span title="Player of the Tournament"> ⭐</span>' : ''}
+        </td>
         <td>${stats.played}</td>
         <td>${stats.won}</td>
         <td>${stats.lost}</td>
@@ -980,7 +985,8 @@ async function viewCompletedTournament(tournamentId) {
     }
 
     // Render results & stats
-    renderPlayerStatsFromCloud(data.playerStats || {});
+    const potIds = getPlayerOfTournamentIds(data.matchResults || []);
+    renderPlayerStatsFromCloud(data.playerStats || {}, potIds);
     renderCompletedMatchSummary(data.matchResults || []);
 
     const potText = computePlayerOfTournament(data.matchResults || []);
