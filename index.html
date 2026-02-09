@@ -78,6 +78,14 @@
   <div id="upcomingList"></div>
   </div>
 
+  <button
+    type="button"
+    class="secondary"
+    onclick="openTournamentHistory()"
+  >
+    📚 View Tournament History
+  </button>
+
   <!-- ================= GROUP OVERALL STATS (HOME) ================= -->
   <div id="groupStatsHome" style="display:none; margin-top:16px;">
     <h3>📊 Overall Player Stats</h3>
@@ -274,6 +282,19 @@
     <button onclick="saveResults()">💾 Save Results</button>
     <button onclick="resetAll()">🏠 Start New Tournament</button>
   </section>
+</section>
+
+<!-- ================= STEP 5 : TOURNAMENT HISTORY ================= -->
+<section id="step5" class="step-card" style="display:none;">
+  <h2>📚 Tournament History</h2>
+
+  <div style="margin-bottom:10px;">
+    <button class="secondary" onclick="goHome()">🏠 Back to Home</button>
+  </div>
+
+  <div id="tournamentHistoryList">
+    <!-- dynamically loaded -->
+  </div>
 </section>
 
 <!-- Firebase (CDN) -->
