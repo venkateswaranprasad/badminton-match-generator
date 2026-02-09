@@ -243,6 +243,34 @@ function renderPlayerStatsIntoContainer(playerStats, containerId) {
   `;
 }
 
+function setStep4Mode(mode) {
+  const playGrid = document.getElementById("playMatchesGrid");
+  const concludeBtn = document.querySelector(
+    "#step4 button[onclick='concludePlay()']"
+  );
+
+  const finalSection = document.getElementById("finalSummarySection");
+
+  if (mode === "VIEW") {
+    // Hide live play controls
+    if (playGrid) playGrid.style.display = "none";
+    if (concludeBtn) concludeBtn.style.display = "none";
+
+    // Show final summary
+    if (finalSection) finalSection.style.display = "block";
+  }
+
+  if (mode === "PLAY") {
+    // Show live play controls
+    if (playGrid) playGrid.style.display = "block";
+    if (concludeBtn) concludeBtn.style.display = "inline-block";
+
+    // Final summary hidden until conclude
+    if (finalSection) finalSection.style.display = "none";
+  }
+}
+
+
 /***********************
  * WIZARD STATE
  ***********************/
@@ -859,11 +887,9 @@ async function viewCompletedTournament(tournamentId) {
     renderPlayerStatsFromCloud(data.playerStats || {});
     renderCompletedMatchSummary(data.matchResults || []);
 
-    // Switch to stats view
-    document.getElementById("playerStatsView").style.display = "block";
-    document.getElementById("tournamentStatsView").style.display = "block";
-
     showStep(4); // reuse final summary UI
+    setStep4Mode("VIEW"); 
+    
   } catch (err) {
     console.error(err);
     alert("Failed to load tournament stats.");
@@ -1817,6 +1843,7 @@ function goNextFromSchedule() {
     return;
   }
 
+  setStep4Mode("PLAY");
   letsPlay();
   showStep(4);
 }
