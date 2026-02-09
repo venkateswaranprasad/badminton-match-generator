@@ -230,6 +230,17 @@ td, th {
   border: 1px solid #ddd;
 }
 
+@media (max-width: 600px) {
+  #upcomingList .schedule-card {
+    padding: 10px;
+  }
+
+  #groupStatsTabs button {
+    font-size: 13px;
+    padding: 8px 12px;
+  }
+}
+
 /* ===== Step 2 Modern Layout Improvements ===== */
 
 /* Make the Step 2 left and right panels look like cards */
@@ -294,6 +305,22 @@ input[type="radio"] {
   margin-top: 10px;
   font-weight: bold;
   color: #e74c3c;
+}
+
+/* Highlight selected team row */
+#teamAssignmentPanel input[type="radio"]:checked {
+  accent-color: #4a90e2;
+}
+
+#teamAssignmentPanel > div:has(input[type="radio"]:checked) {
+  border-color: #4a90e2;
+  box-shadow: 0 0 0 2px rgba(74, 144, 226, 0.15);
+}
+
+@media (max-width: 360px) {
+  .stepper-label {
+    font-size: 10px;
+  }
 }
 
 /* Improve tables inside summary */
@@ -648,5 +675,25 @@ body.dark #fairnessReport th {
 
 body.dark #fairnessReport td {
   border-color: rgba(255,255,255,0.12);
+}
+
+/* ===== Mobile-friendly horizontal scroll ===== */
+.table-scroll {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  position: relative;
+}
+
+.table-scroll::after {
+  content: "↔ Swipe";
+  position: absolute;
+  right: 8px;
+  top: 4px;
+  font-size: 11px;
+  color: #999;
+}
+
+button {
+  min-height: 44px; /* Mobile accessibility standard */
 }
 
