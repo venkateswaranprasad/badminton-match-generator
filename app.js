@@ -147,6 +147,10 @@ function goBack() {
 }
 
 function goHome() {
+ if (isTournamentInProgress()) {
+   alert("Tournament in progress. Please save or complete the tournament before going home.");
+   return;
+ }
   showStep(1);
 }
 
@@ -243,6 +247,9 @@ function assignTeamsRandomlyPreview() {
   renderTeamAssignmentPanel();
 }
 
+function isTournamentInProgress() {
+  return Boolean(currentTournamentId);
+}
 
 /***********************
  * PLAYER HELPERS (ID based)
@@ -448,10 +455,13 @@ async function showUpcomingTournamentsFromCloud() {
           ${
             t.status === "COMPLETED"
               ? `<span class="badge">🏁 Completed</span>`
-              : `<button onclick="resumeTournament('${tid}')">
-                   ▶ Resume
-                 </button>`
+              : t.status === "SCHEDULED"
+                ? `<button onclick="resumeTournament('${tid}')">▶ Resume</button>
+                   <span class="badge">⏸ Not Started</span>`
+                : `<button onclick="resumeTournament('${tid}')">▶ Resume</button>
+                   <span class="badge">▶ In Progress</span>`
           }
+
         </div>
       `;
     });
@@ -483,6 +493,11 @@ async function resumeTournament(tournamentId) {
     }
     scheduledMatches = data.scheduledMatches || [];
     currentTournamentId = tournamentId;
+    // ✅ Restore saved match results
+    window._resumedMatchResults = data.matchResults || [];
+
+    const homeBtn = document.getElementById("homeBtnStep4");
+    if (homeBtn) homeBtn.disabled = true;
 
     document.getElementById("playDate").value = data.playDate;
 
@@ -1519,6 +1534,25 @@ function letsPlay() {
   });
 
   document.getElementById("finalSummarySection").style.display = "none";
+
+  // ✅ Restore saved scores when resuming
+  if (window._resumedMatchResults?.length) {
+    window._resumedMatchResults.forEach(r => {
+      const a = document.getElementById(`scoreA${r.matchNo}`);
+      const b = document.getElementById(`scoreB${r.matchNo}`);
+      const msg = document.getElementById(`saveMsg${r.matchNo}`);
+  
+      if (a && b) {
+        a.value = r.scoreA;
+        b.value = r.scoreB;
+        if (msg) {
+          msg.textContent = "Saved ✅";
+          msg.style.fontWeight = "bold";
+        }
+      }
+    });
+  }
+
 }
 
 async function saveMatchResult(matchNo) {
@@ -1590,7 +1624,8 @@ async function saveMatchResultToCloud(result) {
     const ref = getTournamentRef(groupCodeActive, currentTournamentId);
 
     await updateDoc(ref, {
-      matchResults: arrayUnion(result)
+      matchResults: arrayUnion(result),
+      status: "ONGOING"
     });
 
     console.log("☁️ Match result saved");
@@ -1755,6 +1790,8 @@ async function saveResults() {
   alert("✅ Results saved locally. Syncing to cloud…");
 
   await concludeTournamentInCloud(); // ✅ WAIT for cloud update
+  // ✅ Tournament completed → allow Home
+  currentTournamentId = null;
   document.getElementById("playerStatsView").style.display = "block";
   document.getElementById("tournamentStatsView").style.display = "none";
 
