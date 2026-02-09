@@ -152,6 +152,68 @@ async function showGroupStatsOnHome(groupCode) {
   }
 }
 
+async function openTournamentHistory() {
+  try {
+    requireFirebaseReady();
+
+    const { collection, getDocs, query, orderBy } = window.fs;
+    const db = window.firebaseDb;
+
+    const listEl = document.getElementById("tournamentHistoryList");
+    listEl.innerHTML = "🔄 Loading tournaments...";
+
+    const q = query(
+      collection(db, "groups", groupCodeActive, "tournaments"),
+      orderBy("createdAt", "desc")
+    );
+
+    const snap = await getDocs(q);
+
+    if (snap.empty) {
+      listEl.innerHTML = "<p>No tournaments found.</p>";
+      showStep(5);
+      return;
+    }
+
+    listEl.innerHTML = "";
+
+    snap.forEach(docSnap => {
+      const t = docSnap.data();
+      const tid = docSnap.id;
+
+      let actions = "";
+
+      if (t.status === "COMPLETED") {
+        actions = `
+          <button onclick="viewCompletedTournament('${tid}')">
+            📊 View Stats
+          </button>
+        `;
+      } else {
+        actions = `
+          <button onclick="resumeTournament('${tid}')">
+            ▶ Resume
+          </button>
+        `;
+      }
+
+      listEl.innerHTML += `
+        <div class="schedule-card">
+          <strong>${t.playDate || "Unknown Date"}</strong>
+          <div>Status: <strong>${t.status}</strong></div>
+          ${actions}
+        </div>
+      `;
+    });
+
+    showStep(5);
+
+  } catch (err) {
+    console.error(err);
+    alert("Failed to load tournament history.");
+  }
+}
+
 function renderPlayerStatsIntoContainer(playerStats, containerId) {
   const container = document.getElementById(containerId);
   if (!container) return;
@@ -589,10 +651,19 @@ async function showUpcomingTournamentsFromCloud() {
     }
 
     listEl.innerHTML = "";
+    let shown = 0;
+    const MAX_HOME_TOURNAMENTS = 2;
 
     snap.forEach(docSnap => {
       const t = docSnap.data();
       const tid = docSnap.id;
+
+      // ❌ Do NOT show completed tournaments on Home
+      if (t.status === "COMPLETED") return;
+
+      // ❌ Limit number shown on Home
+      if (shown >= MAX_HOME_TOURNAMENTS) return;
+      shown++;
 
       listEl.innerHTML += `
         <div class="schedule-card">
@@ -600,23 +671,21 @@ async function showUpcomingTournamentsFromCloud() {
           <div>Status: <strong>${t.status}</strong></div>
 
           ${
-            t.status === "COMPLETED"
-              ? `
-                <span class="badge">🏁 Completed</span>
-                <button onclick="viewCompletedTournament('${tid}')">
-                  📊 View Stats
-                </button>
-                `
-              : t.status === "SCHEDULED"
-                ? `<button onclick="resumeTournament('${tid}')">▶ Resume</button>
-                   <span class="badge">⏸ Not Started</span>`
-                : `<button onclick="resumeTournament('${tid}')">▶ Resume</button>
-                   <span class="badge">▶ In Progress</span>`
+            t.status === "SCHEDULED"
+              ? `<button onclick="resumeTournament('${tid}')">▶ Resume</button>
+                 <span class="badge">⏸ Not Started</span>`
+              : `<button onclick="resumeTournament('${tid}')">▶ Resume</button>
+                 <span class="badge">▶ In Progress</span>`
           }
-
         </div>
       `;
     });
+
+// If nothing active/scheduled exists
+if (shown === 0) {
+  listEl.innerHTML = "<p>No active or scheduled tournaments.</p>";
+}
+
 
   } catch (err) {
     console.error(err);
@@ -2205,6 +2274,7 @@ window.assignTeamsRandomlyPreview = assignTeamsRandomlyPreview;
 window.viewCompletedTournament = viewCompletedTournament;
 window.shareGroupPlayerStats = shareGroupPlayerStats;
 window.shareGroupPlayerStats = shareGroupPlayerStats;
+window.openTournamentHistory = openTournamentHistory;
 
 window.startAddPlayer = startAddPlayer;
 window.cancelAddPlayer = cancelAddPlayer;
