@@ -99,7 +99,7 @@ function renderPlayerStatsFromCloud(playerStats = {}) {
 let currentStep = 1;
 let addPlayerMode = false;
 let currentTournamentId = null;
-
+let hasPlayStarted = false;
 
 /***********************
  * GLOBAL STATE (current group/tournament)
@@ -147,12 +147,15 @@ function goBack() {
 }
 
 function goHome() {
- if (isTournamentInProgress()) {
-   alert("Tournament in progress. Please save or complete the tournament before going home.");
-   return;
- }
+  if (currentTournamentId && hasPlayStarted) {
+    alert(
+      "Tournament play is in progress. Please complete the tournament or finish entering scores before going home."
+    );
+    return;
+  }
   showStep(1);
 }
+
 
 /***********************
  * UTILITIES
@@ -493,6 +496,8 @@ async function resumeTournament(tournamentId) {
     }
     scheduledMatches = data.scheduledMatches || [];
     currentTournamentId = tournamentId;
+    
+    hasPlayStarted = (data.matchResults || []).length > 0;
     // ✅ Restore saved match results
     window._resumedMatchResults = data.matchResults || [];
 
@@ -1640,7 +1645,8 @@ async function saveMatchResultToCloud(result) {
       matchResults: updatedResults,
       status: "ONGOING"
     });
-
+    
+    hasPlayStarted = true;
     console.log("☁️ Match result saved (deduplicated)");
 
   } catch (err) {
@@ -1808,6 +1814,7 @@ async function saveResults() {
   await concludeTournamentInCloud(); // ✅ WAIT for cloud update
   // ✅ Tournament completed → allow Home
   currentTournamentId = null;
+  hasPlayStarted = false;
   document.getElementById("playerStatsView").style.display = "block";
   document.getElementById("tournamentStatsView").style.display = "none";
 
