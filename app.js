@@ -42,6 +42,23 @@ function computePlayerStatsFromResults(matchResults = []) {
   return stats;
 }
 
+function buildGroupStatsShareText(stats = {}) {
+  let lines = [
+    `🏸 Badminton Group Stats`,
+    `Group: ${groupDisplayName}`,
+    ``
+  ];
+
+  Object.entries(stats).forEach(([pid, s]) => {
+    const name = getPlayerNameById(pid);
+    lines.push(
+      `${name}: Played ${s.played}, Won ${s.won}, Lost ${s.lost}`
+    );
+  });
+
+  return lines.join("\n");
+}
+
 
 async function fetchTournamentsFromCloud(groupCode) {
   requireFirebaseReady();
@@ -262,6 +279,54 @@ function isTournamentInProgress() {
   return Boolean(currentTournamentId);
 }
 
+async function shareGroupPlayerStats() {
+  try {
+    requireFirebaseReady();
+
+    const { collection, getDocs } = window.fs;
+    const db = window.firebaseDb;
+
+    const snap = await getDocs(
+      collection(db, "groups", groupCodeActive, "tournaments")
+    );
+
+    const aggregated = {};
+
+    snap.forEach(docSnap => {
+      const t = docSnap.data();
+      if (t.status !== "COMPLETED" || !t.playerStats) return;
+
+      Object.entries(t.playerStats).forEach(([pid, s]) => {
+        if (!aggregated[pid]) {
+          aggregated[pid] = { played: 0, won: 0, lost: 0 };
+        }
+        aggregated[pid].played += s.played || 0;
+        aggregated[pid].won += s.won || 0;
+        aggregated[pid].lost += s.lost || 0;
+      });
+    });
+
+    if (Object.keys(aggregated).length === 0) {
+      alert("No completed tournament stats to share.");
+      return;
+    }
+
+    const text = buildGroupStatsShareText(aggregated);
+
+    if (navigator.share) {
+      await navigator.share({ text });
+    } else {
+      await navigator.clipboard.writeText(text);
+      alert("Stats copied to clipboard. You can paste and share.");
+    }
+
+  } catch (err) {
+    console.error(err);
+    alert("Failed to share player stats.");
+  }
+}
+
+
 /***********************
  * PLAYER HELPERS (ID based)
  ***********************/
@@ -465,7 +530,12 @@ async function showUpcomingTournamentsFromCloud() {
 
           ${
             t.status === "COMPLETED"
-              ? `<span class="badge">🏁 Completed</span>`
+              ? `
+                <span class="badge">🏁 Completed</span>
+                <button onclick="viewCompletedTournament('${tid}')">
+                  📊 View Stats
+                </button>
+                `
               : t.status === "SCHEDULED"
                 ? `<button onclick="resumeTournament('${tid}')">▶ Resume</button>
                    <span class="badge">⏸ Not Started</span>`
@@ -619,6 +689,79 @@ async function generateGroupCode() {
     alert("❌ Failed to generate group code in Cloud. Check console.");
   }
 }
+
+async function viewCompletedTournament(tournamentId) {
+  try {
+    requireFirebaseReady();
+
+    const ref = getTournamentRef(groupCodeActive, tournamentId);
+    const snap = await window.fs.getDoc(ref);
+
+    if (!snap.exists()) {
+      alert("Tournament not found.");
+      return;
+    }
+
+    const data = snap.data();
+    if (data.status !== "COMPLETED") {
+      alert("Only completed tournaments can be viewed.");
+      return;
+    }
+
+    // Render results & stats
+    renderPlayerStatsFromCloud(data.playerStats || {});
+    renderCompletedMatchSummary(data.matchResults || []);
+
+    // Switch to stats view
+    document.getElementById("playerStatsView").style.display = "block";
+    document.getElementById("tournamentStatsView").style.display = "block";
+
+    showStep(4); // reuse final summary UI
+  } catch (err) {
+    console.error(err);
+    alert("Failed to load tournament stats.");
+  }
+}
+
+function renderCompletedMatchSummary(results = []) {
+  if (!results.length) {
+    document.getElementById("matchSummary").innerHTML =
+      "<p>No match data available.</p>";
+    return;
+  }
+
+  let html = `
+    <table border="1" cellpadding="6">
+      <tr>
+        <th>Team A</th>
+        <th>Score</th>
+        <th>Team B</th>
+        <th>Score</th>
+      </tr>
+  `;
+
+  results.forEach(r => {
+    const a = r.teamAIds.map((id, i) =>
+      getPlayerNameById(id, r.teamASnapshot?.[i])
+    );
+    const b = r.teamBIds.map((id, i) =>
+      getPlayerNameById(id, r.teamBSnapshot?.[i])
+    );
+
+    html += `
+      <tr>
+        <td>${a.join(" + ")}</td>
+        <td>${r.scoreA}</td>
+        <td>${b.join(" + ")}</td>
+        <td>${r.scoreB}</td>
+      </tr>
+    `;
+  });
+
+  html += "</table>";
+  document.getElementById("matchSummary").innerHTML = html;
+}
+
 
 /***********************
  * STEP 1 -> STEP 2
@@ -1986,6 +2129,8 @@ window.goNextFromSetup = goNextFromSetup;
 window.resumeTournament = resumeTournament;
 window.showPlayerStats = showPlayerStats;
 window.assignTeamsRandomlyPreview = assignTeamsRandomlyPreview;
+window.viewCompletedTournament = viewCompletedTournament;
+window.shareGroupPlayerStats = shareGroupPlayerStats;
 
 window.startAddPlayer = startAddPlayer;
 window.cancelAddPlayer = cancelAddPlayer;
