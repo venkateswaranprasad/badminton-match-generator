@@ -272,14 +272,18 @@ let scheduledMatches = []; // [{matchNo, teamAIds, teamBIds, teamASnapshot, team
 function showStep(stepNo) {
   currentStep = stepNo;
 
-  for (let i = 1; i <= 4; i++) {
+  for (let i = 1; i <= 5; i++) {
     const el = document.getElementById(`step${i}`);
     if (el) el.style.display = i === stepNo ? "block" : "none";
   }
 
   const stepText = document.getElementById("currentStepText");
-  if (stepText) stepText.textContent = stepNo;
 
+  if (stepText) {
+    stepText.textContent = stepNo <= 4 ? stepNo : "History";
+  }
+
+  // Stepper UI only highlights steps 1–4
   for (let i = 1; i <= 4; i++) {
     const el = document.getElementById(`s${i}`);
     if (!el) continue;
@@ -287,10 +291,11 @@ function showStep(stepNo) {
     el.classList.remove("active");
     el.classList.remove("done");
 
-    if (i < stepNo) el.classList.add("done");
+    if (i < stepNo && stepNo <= 4) el.classList.add("done");
     if (i === stepNo) el.classList.add("active");
   }
 }
+
 
 function goBack() {
   if (currentStep > 1) showStep(currentStep - 1);
