@@ -1605,8 +1605,7 @@ async function saveMatchResult(matchNo) {
   msgEl.textContent = "Saving…";
 
   // ✅ WAIT for cloud save
-  await saveMatchResultToCloud(resultObj);
-
+  await saveMatchResultToCloud(resultObj);  
   msgEl.textContent = `Saved ✅ Team ${winnerTeam} won`;
   msgEl.style.fontWeight = "bold";
 }
@@ -1620,19 +1619,38 @@ async function saveMatchResultToCloud(result) {
   }
 
   try {
-    const { updateDoc, arrayUnion } = window.fs;
+    const { updateDoc, getDoc } = window.fs;
     const ref = getTournamentRef(groupCodeActive, currentTournamentId);
 
+    // 🔒 Read current results
+    const snap = await getDoc(ref);
+    if (!snap.exists()) return;
+    
+    const data = snap.data();
+    if (data.status === "COMPLETED") {
+      alert("Tournament is completed. Scores cannot be edited.");
+      return;
+     }
+    const existing = data.matchResults || [];
+    
+    // ✅ Replace match by matchNo
+    const filtered = existing.filter(r => r.matchNo !== result.matchNo);
+    const updatedResults = [...filtered, result];
+    
     await updateDoc(ref, {
-      matchResults: arrayUnion(result),
-      status: "ONGOING"
-    });
+    matchResults: updatedResults,
+    status: "ONGOING"
+        });
 
-    console.log("☁️ Match result saved");
+    msgEl.textContent = "Saved ✅";
+    btn.disabled = true;
+
+    console.log("☁️ Match result saved (deduplicated)");
   } catch (err) {
     console.error("❌ Failed to save match result", err);
   }
 }
+
 
 async function concludePlay() {
 
