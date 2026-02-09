@@ -42,6 +42,49 @@ function computePlayerStatsFromResults(matchResults = []) {
   return stats;
 }
 
+function buildStatsTable(rows, containerId) {
+  const sortFn = (key) => {
+    const stateKey = `${containerId}_sort`;
+    const prev = window[stateKey] || { key: null, asc: false };
+
+    const asc = prev.key === key ? !prev.asc : false;
+    window[stateKey] = { key, asc };
+
+    rows.sort((a, b) => {
+      if (typeof a[key] === "string") {
+        return asc
+          ? a[key].localeCompare(b[key])
+          : b[key].localeCompare(a[key]);
+      }
+      return asc ? a[key] - b[key] : b[key] - a[key];
+    });
+
+    document.getElementById(containerId).innerHTML =
+      buildStatsTable(rows, containerId);
+  };
+
+  return `
+    <table border="1" cellpadding="6" style="cursor:pointer;">
+      <tr>
+        <th onclick="(${sortFn})('name')">Player</th>
+        <th onclick="(${sortFn})('played')">Played</th>
+        <th onclick="(${sortFn})('won')">Won</th>
+        <th onclick="(${sortFn})('lost')">Lost</th>
+        <th onclick="(${sortFn})('winPct')">Win %</th>
+      </tr>
+      ${rows.map(r => `
+        <tr>
+          <td>${escapeHtml(r.name)}</td>
+          <td>${r.played}</td>
+          <td>${r.won}</td>
+          <td>${r.lost}</td>
+          <td>${r.winPct}%</td>
+        </tr>
+      `).join("")}
+    </table>
+  `;
+}
+
 function buildGroupStatsShareText(stats = {}) {
   let lines = [
     `🏸 Badminton Group Stats`,
@@ -218,30 +261,29 @@ function renderPlayerStatsIntoContainer(playerStats, containerId) {
   const container = document.getElementById(containerId);
   if (!container) return;
 
-  const rows = Object.entries(playerStats).map(([pid, stats]) => {
-    const name = getPlayerNameById(pid);
-    return `
-      <tr>
-        <td>${escapeHtml(name)}</td>
-        <td>${stats.played}</td>
-        <td>${stats.won}</td>
-        <td>${stats.lost}</td>
-      </tr>
-    `;
+  // Build rows with derived win %
+  let rows = Object.entries(playerStats).map(([pid, s]) => {
+    const played = s.played || 0;
+    const won = s.won || 0;
+    const lost = s.lost || 0;
+    const winPct = played > 0 ? (won / played) * 100 : 0;
+
+    return {
+      pid,
+      name: getPlayerNameById(pid),
+      played,
+      won,
+      lost,
+      winPct: Number(winPct.toFixed(1))
+    };
   });
 
-  container.innerHTML = `
-    <table border="1" cellpadding="6">
-      <tr>
-        <th>Player</th>
-        <th>Played</th>
-        <th>Won</th>
-        <th>Lost</th>
-      </tr>
-      ${rows.join("")}
-    </table>
-  `;
+  // Default sort: Win % desc
+  rows.sort((a, b) => b.winPct - a.winPct);
+
+  container.innerHTML = buildStatsTable(rows, containerId);
 }
+
 
 function setStep4Mode(mode) {
   step4Mode = mode;
