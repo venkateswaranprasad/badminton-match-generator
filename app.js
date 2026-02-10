@@ -985,7 +985,7 @@ async function viewCompletedTournament(tournamentId) {
     }
 
     // Render results & stats
-    const potIds = getPlayerOfTournamentIds(data.matchResults || []);
+    // const potIds = getPlayerOfTournamentIds(data.matchResults || []);
     renderPlayerStatsFromCloud(data.playerStats || {}, potIds);
     renderCompletedMatchSummary(data.matchResults || []);
 
