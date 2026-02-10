@@ -986,7 +986,7 @@ async function viewCompletedTournament(tournamentId) {
 
     // Render results & stats
     // const potIds = getPlayerOfTournamentIds(data.matchResults || []);
-    renderPlayerStatsFromCloud(data.playerStats || {}, potIds);
+    // renderPlayerStatsFromCloud(data.playerStats || {}, potIds);
     renderCompletedMatchSummary(data.matchResults || []);
 
     const potText = computePlayerOfTournament(data.matchResults || []);
