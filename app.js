@@ -640,6 +640,36 @@ function isValidBadmintonScore(scoreA, scoreB) {
   return false;
 }
 
+function groupMatchesIntoRounds(matches, courts) {
+  const rounds = [];
+  let currentRound = [];
+  let usedPlayers = new Set();
+
+  matches.forEach(match => {
+    const players = [...match.teamAIds, ...match.teamBIds];
+
+    const hasConflict = players.some(pid => usedPlayers.has(pid));
+
+    // If conflict OR courts full → start new round
+    if (hasConflict || currentRound.length >= courts) {
+      if (currentRound.length > 0) {
+        rounds.push(currentRound);
+      }
+      currentRound = [];
+      usedPlayers = new Set();
+    }
+
+    currentRound.push(match);
+    players.forEach(pid => usedPlayers.add(pid));
+  });
+
+  if (currentRound.length > 0) {
+    rounds.push(currentRound);
+  }
+
+  return rounds;
+}
+
 /***********************
  * PLAYER HELPERS (ID based)
  ***********************/
@@ -1688,19 +1718,36 @@ function renderScheduleCardsFromIds() {
   if (!resultsDiv) return;
   resultsDiv.innerHTML = "";
 
-  scheduledMatches.forEach(match => {
-    const a1 = getPlayerNameById(match.teamAIds[0], match.teamASnapshot?.[0]);
-    const a2 = getPlayerNameById(match.teamAIds[1], match.teamASnapshot?.[1]);
-    const b1 = getPlayerNameById(match.teamBIds[0], match.teamBSnapshot?.[0]);
-    const b2 = getPlayerNameById(match.teamBIds[1], match.teamBSnapshot?.[1]);
+  const courts = getNumberOfCourts();
+  const rounds = groupMatchesIntoRounds(scheduledMatches, courts);
 
+  rounds.forEach((round, roundIndex) => {
     resultsDiv.innerHTML += `
-      <div class="schedule-card">
-        <strong>Match ${match.matchNo}</strong>
-        <div><span class="badge badge-a">A</span> ${escapeHtml(a1)} + ${escapeHtml(a2)}</div>
-        <div><span class="badge badge-b">B</span> ${escapeHtml(b1)} + ${escapeHtml(b2)}</div>
+      <div style="margin-top:20px;">
+        <h3>Round ${roundIndex + 1}</h3>
       </div>
     `;
+
+    round.forEach((match, courtIndex) => {
+      const a1 = getPlayerNameById(match.teamAIds[0], match.teamASnapshot?.[0]);
+      const a2 = getPlayerNameById(match.teamAIds[1], match.teamASnapshot?.[1]);
+      const b1 = getPlayerNameById(match.teamBIds[0], match.teamBSnapshot?.[0]);
+      const b2 = getPlayerNameById(match.teamBIds[1], match.teamBSnapshot?.[1]);
+
+      resultsDiv.innerHTML += `
+        <div class="schedule-card">
+          <strong>Round ${roundIndex + 1} – Court ${courtIndex + 1}</strong>
+          <div>
+            <span class="badge badge-a">A</span>
+            ${escapeHtml(a1)} + ${escapeHtml(a2)}
+          </div>
+          <div>
+            <span class="badge badge-b">B</span>
+            ${escapeHtml(b1)} + ${escapeHtml(b2)}
+          </div>
+        </div>
+      `;
+    });
   });
 
   document.getElementById("playMatchesGrid").innerHTML = "";
