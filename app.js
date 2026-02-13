@@ -969,7 +969,8 @@ async function checkGroupHistory() {
 
     if (!cloudGroup) {
       if (msgEl) msgEl.textContent = "Group not found in Cloud. You can generate a new Group Code.";
-
+      const historyBtn = document.getElementById("historyBtn");
+      if (historyBtn) historyBtn.style.display = "none";
       document.getElementById("historySection").style.display = "none";
       document.getElementById("upcomingSection").style.display = "none";
       // ✅ If group has NO players yet → show player count setup
@@ -984,6 +985,8 @@ async function checkGroupHistory() {
 
     // ✅ Apply global state from cloud
     groupCodeActive = groupCode;
+    const historyBtn = document.getElementById("historyBtn");
+    if (historyBtn) historyBtn.style.display = "inline-block";
     groupDisplayName = cloudGroup.groupName || "(Unnamed Group)";
     groupKey = normalizeGroupName(groupDisplayName);
     groupPlayers = cloudGroup.players || [];
@@ -2422,7 +2425,8 @@ function resetAll() {
   document.getElementById("numberOfCourts").value = 1;
   document.getElementById("seedInput").value = "";
   document.getElementById("randomnessLevel").value = 30;
-
+  const historyBtn = document.getElementById("historyBtn");
+  if (historyBtn) historyBtn.style.display = "none";
   document.getElementById("matchResults").innerHTML = "";
   document.getElementById("fairnessReport").innerHTML = "";
   document.getElementById("playMatchesGrid").innerHTML = "";
