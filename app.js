@@ -1729,7 +1729,7 @@ function renderScheduleCardsFromIds() {
 
   rounds.forEach((round, roundIndex) => {
     resultsDiv.innerHTML += `
-      <div style="margin-top:20px;">
+      <div class="round-header">
         <h3>Round ${roundIndex + 1}</h3>
       </div>
     `;
