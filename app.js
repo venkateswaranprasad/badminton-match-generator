@@ -508,6 +508,12 @@ function getRng() {
   return mulberry32(hashSeedToInt(seedStr));
 }
 
+function getNumberOfCourts() {
+  const val = Number(document.getElementById("numberOfCourts")?.value);
+  if (!val || val < 1) return 1;
+  return Math.min(val, 3); // restrict to max 3 for now
+}
+
 function shuffleArray(arr, rngFn) {
   for (let i = arr.length - 1; i > 0; i--) {
     const j = Math.floor(rngFn() * (i + 1));
