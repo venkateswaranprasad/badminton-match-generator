@@ -2419,6 +2419,7 @@ function resetGroupHistory() {
 function resetAll() {
   document.getElementById("playerCount").value = "";
   document.getElementById("matchesPerPlayer").value = 1;
+  document.getElementById("numberOfCourts").value = 1;
   document.getElementById("seedInput").value = "";
   document.getElementById("randomnessLevel").value = 30;
 
