@@ -130,9 +130,6 @@
     <input type="number" id="playerCount" min="4" /><br /><br />
   </div>
 
-  <label>Matches per Player</label><br />
-  <input type="number" id="matchesPerPlayer" min="1" value="1" /><br /><br />
-
   <details>
     <summary><strong>Advanced Settings</strong></summary>
     <br />
@@ -214,8 +211,18 @@
       </div>
 
       <div id="teamAssignmentPanel"></div>
-
       <p id="teamAssignmentMessage"></p>
+
+      <hr style="margin:15px 0;" />
+    
+      <div style="margin-top:10px;">
+        <label><strong>Matches per Player</strong></label><br />
+        <input type="number" id="matchesPerPlayer" min="1" value="1" style="width:100px;" />
+        <p style="font-size:12px;color:#666;margin-top:6px;">
+          ℹ️ Each player will play this many matches (approximate).
+        </p>
+      </div>
+
     </div>
   </div>
 
