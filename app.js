@@ -59,7 +59,7 @@ function buildStatsTable(rows, containerId) {
       return asc ? a[key] - b[key] : b[key] - a[key];
     });
 
-    document.getElementById(containerId).innerHTML =
+    document.ElementById(containerId).innerHTML =
       buildStatsTable(rows, containerId);
   };
 
@@ -93,7 +93,7 @@ function buildGroupStatsShareText(stats = {}) {
   ];
 
   Object.entries(stats).forEach(([pid, s]) => {
-    const name = getPlayerNameById(pid);
+    const name = PlayerNameById(pid);
     lines.push(
       `${name}: Played ${s.played}, Won ${s.won}, Lost ${s.lost}`
     );
@@ -106,10 +106,10 @@ function buildGroupStatsShareText(stats = {}) {
 async function fetchTournamentsFromCloud(groupCode) {
   requireFirebaseReady();
   const db = window.firebaseDb;
-  const { collection, getDocs } = window.fs;
+  const { collection, Docs } = window.fs;
 
   const colRef = collection(db, "groups", groupCode, "tournaments");
-  const snap = await getDocs(colRef);
+  const snap = await Docs(colRef);
 
   const list = [];
   snap.forEach(docSnap => {
@@ -120,7 +120,7 @@ async function fetchTournamentsFromCloud(groupCode) {
 }
 
 function renderPlayerStatsFromCloud(playerStats = {}) {
-  const container = document.getElementById("playerStatsTable");
+  const container = document.ElementById("playerStatsTable");
   if (!container) return;
 
   if (!playerStats || Object.keys(playerStats).length === 0) {
@@ -129,7 +129,7 @@ function renderPlayerStatsFromCloud(playerStats = {}) {
   }
 
   const rows = Object.entries(playerStats).map(([pid, stats]) => {
-    const name = getPlayerNameById(pid);
+    const name = PlayerNameById(pid);
     const isPOT = potIds.includes(pid);
   
     return `
@@ -162,10 +162,10 @@ async function showGroupStatsOnHome(groupCode) {
   try {
     requireFirebaseReady();
 
-    const { collection, getDocs } = window.fs;
+    const { collection, Docs } = window.fs;
     const db = window.firebaseDb;
 
-    const snap = await getDocs(
+    const snap = await Docs(
       collection(db, "groups", groupCode, "tournaments")
     );
 
@@ -194,7 +194,7 @@ async function showGroupStatsOnHome(groupCode) {
       "groupStatsHomeTable"
     );
 
-    document.getElementById("groupStatsHome").style.display = "block";
+    document.ElementById("groupStatsHome").style.display = "block";
   } catch (err) {
     console.error("❌ Failed to load group stats on home", err);
   }
@@ -204,10 +204,10 @@ async function openTournamentHistory() {
   try {
     requireFirebaseReady();
 
-    const { collection, getDocs, query, orderBy } = window.fs;
+    const { collection, Docs, query, orderBy } = window.fs;
     const db = window.firebaseDb;
 
-    const listEl = document.getElementById("tournamentHistoryList");
+    const listEl = document.ElementById("tournamentHistoryList");
     listEl.innerHTML = "🔄 Loading tournaments...";
 
     const q = query(
@@ -215,7 +215,7 @@ async function openTournamentHistory() {
       orderBy("createdAt", "desc")
     );
 
-    const snap = await getDocs(q);
+    const snap = await Docs(q);
 
     if (snap.empty) {
       listEl.innerHTML = "<p>No tournaments found.</p>";
@@ -263,7 +263,7 @@ async function openTournamentHistory() {
 }
 
 function renderPlayerStatsIntoContainer(playerStats, containerId) {
-  const container = document.getElementById(containerId);
+  const container = document.ElementById(containerId);
   if (!container) return;
 
   // Build rows with derived win %
@@ -275,7 +275,7 @@ function renderPlayerStatsIntoContainer(playerStats, containerId) {
 
     return {
       pid,
-      name: getPlayerNameById(pid),
+      name: PlayerNameById(pid),
       played,
       won,
       lost,
@@ -292,13 +292,13 @@ function renderPlayerStatsIntoContainer(playerStats, containerId) {
 
 function setStep4Mode(mode) {
   step4Mode = mode;
-  const titleEl = document.getElementById("step4Title");
+  const titleEl = document.ElementById("step4Title");
 
-  const playGrid = document.getElementById("playMatchesGrid");
+  const playGrid = document.ElementById("playMatchesGrid");
   const concludeBtn = document.querySelector(
     "#step4 button[onclick='concludePlay()']"
   );
-  const finalSection = document.getElementById("finalSummarySection");
+  const finalSection = document.ElementById("finalSummarySection");
 
   const saveResultsBtn = document.querySelector(
     "#finalSummarySection button[onclick='saveResults()']"
@@ -353,11 +353,11 @@ function computePlayerOfTournament(matchResults = []) {
     pid => winCount[pid] === maxWins
   );
 
-  const names = topIds.map(pid => getPlayerNameById(pid));
+  const names = topIds.map(pid => PlayerNameById(pid));
   return `${names.join(", ")} (${maxWins} wins)`;
 }
 
-function getPlayerOfTournamentIds(matchResults = []) {
+function PlayerOfTournamentIds(matchResults = []) {
   const winCount = {};
 
   matchResults.forEach(r => {
@@ -409,11 +409,11 @@ function showStep(stepNo) {
   currentStep = stepNo;
 
   for (let i = 1; i <= 5; i++) {
-    const el = document.getElementById(`step${i}`);
+    const el = document.ElementById(`step${i}`);
     if (el) el.style.display = i === stepNo ? "block" : "none";
   }
 
-  const stepText = document.getElementById("currentStepText");
+  const stepText = document.ElementById("currentStepText");
 
   if (stepText) {
     stepText.textContent = stepNo <= 4 ? stepNo : "History";
@@ -421,7 +421,7 @@ function showStep(stepNo) {
 
   // Stepper UI only highlights steps 1–4
   for (let i = 1; i <= 4; i++) {
-    const el = document.getElementById(`s${i}`);
+    const el = document.ElementById(`s${i}`);
     if (!el) continue;
 
     el.classList.remove("active");
@@ -482,17 +482,23 @@ function escapeHtml(text) {
     .replaceAll("'", "&#039;");
 }
 
-function getTodayDateString() {
+function TodayDateString() {
   const d = new Date();
-  const yyyy = d.getFullYear();
-  const mm = String(d.getMonth() + 1).padStart(2, "0");
-  const dd = String(d.getDate()).padStart(2, "0");
+  const yyyy = d.FullYear();
+  const mm = String(d.Month() + 1).padStart(2, "0");
+  const dd = String(d.Date()).padStart(2, "0");
   return `${yyyy}-${mm}-${dd}`;
 }
 
 function getMatchesPerPlayer() {
   const val = Number(document.getElementById("matchesPerPlayer").value);
   return val;
+}
+
+function getNumberOfCourts() {
+  const val = Number(document.getElementById("numberOfCourts")?.value);
+  if (!val || val < 1) return 1;
+  return Math.min(val, 3); // restrict to max 3 for now
 }
 
 function getRandomnessLevel() {
@@ -2366,6 +2372,7 @@ function resetGroupHistory() {
 function resetAll() {
   document.getElementById("playerCount").value = "";
   document.getElementById("matchesPerPlayer").value = 1;
+  document.getElementById("numberOfCourts").value = 1;
   document.getElementById("seedInput").value = "";
   document.getElementById("randomnessLevel").value = 30;
 
