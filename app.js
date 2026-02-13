@@ -93,7 +93,7 @@ function buildGroupStatsShareText(stats = {}) {
   ];
 
   Object.entries(stats).forEach(([pid, s]) => {
-    const name = PlayerNameById(pid);
+    const name = getPlayerNameById(pid);
     lines.push(
       `${name}: Played ${s.played}, Won ${s.won}, Lost ${s.lost}`
     );
@@ -129,7 +129,7 @@ function renderPlayerStatsFromCloud(playerStats = {}) {
   }
 
   const rows = Object.entries(playerStats).map(([pid, stats]) => {
-    const name = PlayerNameById(pid);
+    const name = getPlayerNameById(pid);
     const isPOT = potIds.includes(pid);
   
     return `
@@ -204,7 +204,7 @@ async function openTournamentHistory() {
   try {
     requireFirebaseReady();
 
-    const { collection, Docs, query, orderBy } = window.fs;
+    const { collection, getDocs, query, orderBy } = window.fs;
     const db = window.firebaseDb;
 
     const listEl = document.getElementById("tournamentHistoryList");
@@ -275,7 +275,7 @@ function renderPlayerStatsIntoContainer(playerStats, containerId) {
 
     return {
       pid,
-      name: PlayerNameById(pid),
+      name: getPlayerNameById(pid),
       played,
       won,
       lost,
@@ -353,11 +353,11 @@ function computePlayerOfTournament(matchResults = []) {
     pid => winCount[pid] === maxWins
   );
 
-  const names = topIds.map(pid => PlayerNameById(pid));
+  const names = topIds.map(pid => getPlayerNameById(pid));
   return `${names.join(", ")} (${maxWins} wins)`;
 }
 
-function PlayerOfTournamentIds(matchResults = []) {
+function getPlayerOfTournamentIds(matchResults = []) {
   const winCount = {};
 
   matchResults.forEach(r => {
@@ -493,12 +493,6 @@ function getTodayDateString() {
 function getMatchesPerPlayer() {
   const val = Number(document.getElementById("matchesPerPlayer").value);
   return val;
-}
-
-function getNumberOfCourts() {
-  const val = Number(document.getElementById("numberOfCourts")?.value);
-  if (!val || val < 1) return 1;
-  return Math.min(val, 3); // restrict to max 3 for now
 }
 
 function getRandomnessLevel() {
@@ -1686,37 +1680,6 @@ function scheduleMatchesSmart(teamAPlayers, teamBPlayers, matchCount) {
   renderFairnessReport();
 }
 
-function groupMatchesIntoRounds(matches, courts) {
-  const rounds = [];
-  let currentRound = [];
-  let usedPlayers = new Set();
-
-  matches.forEach(match => {
-    const players = [...match.teamAIds, ...match.teamBIds];
-
-    const hasConflict = players.some(pid => usedPlayers.has(pid));
-
-    // If conflict OR courts full → start new round
-    if (hasConflict || currentRound.length >= courts) {
-      if (currentRound.length > 0) {
-        rounds.push(currentRound);
-      }
-      currentRound = [];
-      usedPlayers = new Set();
-    }
-
-    currentRound.push(match);
-    players.forEach(pid => usedPlayers.add(pid));
-  });
-
-  if (currentRound.length > 0) {
-    rounds.push(currentRound);
-  }
-
-  return rounds;
-}
-
-
 /***********************
  * STEP 3: RENDER SCHEDULE
  ***********************/
@@ -1725,42 +1688,24 @@ function renderScheduleCardsFromIds() {
   if (!resultsDiv) return;
   resultsDiv.innerHTML = "";
 
-  const courts = getNumberOfCourts();
-  const rounds = groupMatchesIntoRounds(scheduledMatches, courts);
+  scheduledMatches.forEach(match => {
+    const a1 = getPlayerNameById(match.teamAIds[0], match.teamASnapshot?.[0]);
+    const a2 = getPlayerNameById(match.teamAIds[1], match.teamASnapshot?.[1]);
+    const b1 = getPlayerNameById(match.teamBIds[0], match.teamBSnapshot?.[0]);
+    const b2 = getPlayerNameById(match.teamBIds[1], match.teamBSnapshot?.[1]);
 
-  rounds.forEach((round, roundIndex) => {
     resultsDiv.innerHTML += `
-      <div style="margin-top:20px;">
-        <h3>Round ${roundIndex + 1}</h3>
+      <div class="schedule-card">
+        <strong>Match ${match.matchNo}</strong>
+        <div><span class="badge badge-a">A</span> ${escapeHtml(a1)} + ${escapeHtml(a2)}</div>
+        <div><span class="badge badge-b">B</span> ${escapeHtml(b1)} + ${escapeHtml(b2)}</div>
       </div>
     `;
-
-    round.forEach((match, courtIndex) => {
-      const a1 = getPlayerNameById(match.teamAIds[0], match.teamASnapshot?.[0]);
-      const a2 = getPlayerNameById(match.teamAIds[1], match.teamASnapshot?.[1]);
-      const b1 = getPlayerNameById(match.teamBIds[0], match.teamBSnapshot?.[0]);
-      const b2 = getPlayerNameById(match.teamBIds[1], match.teamBSnapshot?.[1]);
-
-      resultsDiv.innerHTML += `
-        <div class="schedule-card">
-          <strong>Round ${roundIndex + 1} – Court ${courtIndex + 1}</strong>
-          <div>
-            <span class="badge badge-a">A</span>
-            ${escapeHtml(a1)} + ${escapeHtml(a2)}
-          </div>
-          <div>
-            <span class="badge badge-b">B</span>
-            ${escapeHtml(b1)} + ${escapeHtml(b2)}
-          </div>
-        </div>
-      `;
-    });
   });
 
   document.getElementById("playMatchesGrid").innerHTML = "";
   document.getElementById("finalSummarySection").style.display = "none";
 }
-
 
 /***********************
  * STEP 3: FAIRNESS REPORT
@@ -2421,7 +2366,6 @@ function resetGroupHistory() {
 function resetAll() {
   document.getElementById("playerCount").value = "";
   document.getElementById("matchesPerPlayer").value = 1;
-  document.getElementById("numberOfCourts").value = 1;
   document.getElementById("seedInput").value = "";
   document.getElementById("randomnessLevel").value = 30;
 
