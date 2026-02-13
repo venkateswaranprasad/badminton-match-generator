@@ -292,41 +292,21 @@ function renderPlayerStatsIntoContainer(playerStats, containerId) {
 
 function setStep4Mode(mode) {
   step4Mode = mode;
+
   const titleEl = document.getElementById("step4Title");
 
-  const playGrid = document.getElementById("playMatchesGrid");
-  const concludeBtn = document.querySelector(
-    "#step4 button[onclick='concludePlay()']"
-  );
-  const finalSection = document.getElementById("finalSummarySection");
-
-  const saveResultsBtn = document.querySelector(
-    "#finalSummarySection button[onclick='saveResults()']"
-  );
-  const newTournamentBtn = document.querySelector(
-    "#finalSummarySection button[onclick='resetAll()']"
-  );
-
-  if (mode === "VIEW") {
-    if (titleEl) titleEl.textContent = "Tournament Stats";
-
-    if (playGrid) playGrid.style.display = "none";
-    if (concludeBtn) concludeBtn.style.display = "none";
-    if (finalSection) finalSection.style.display = "block";
-
-    if (saveResultsBtn) saveResultsBtn.style.display = "none";
-    if (newTournamentBtn) newTournamentBtn.style.display = "none";
+  if (titleEl) {
+    titleEl.textContent =
+      mode === "PLAY" ? "Play" : "Tournament Stats";
   }
 
-  if (mode === "PLAY") {
-    if (titleEl) titleEl.textContent = "Play";
+  toggleStep4ModeElements(mode);
 
-    if (playGrid) playGrid.style.display = "block";
-    if (concludeBtn) concludeBtn.style.display = "inline-block";
-    if (finalSection) finalSection.style.display = "none";
-
-    if (saveResultsBtn) saveResultsBtn.style.display = "";
-    if (newTournamentBtn) newTournamentBtn.style.display = "";
+  // VIEW mode should show final summary
+  const finalSection = document.getElementById("finalSummarySection");
+  if (finalSection) {
+    finalSection.style.display =
+      mode === "VIEW" ? "block" : "none";
   }
 }
 
@@ -674,6 +654,19 @@ function groupMatchesIntoRounds(matches, courts) {
   }
 
   return rounds;
+}
+
+function toggleStep4ModeElements(mode) {
+
+  document.querySelectorAll(".play-only")
+    .forEach(el => {
+      el.style.display = mode === "PLAY" ? "" : "none";
+    });
+
+  document.querySelectorAll(".view-only")
+    .forEach(el => {
+      el.style.display = mode === "VIEW" ? "" : "none";
+    });
 }
 
 /***********************
