@@ -619,25 +619,26 @@ function isValidBadmintonScore(scoreA, scoreB) {
   if (scoreA > 30 || scoreB > 30) return false;
   if (scoreA === scoreB) return false;
 
-  const maxScore = Math.max(scoreA, scoreB);
-  const minScore = Math.min(scoreA, scoreB);
+  const max = Math.max(scoreA, scoreB);
+  const min = Math.min(scoreA, scoreB);
+  const diff = max - min;
 
-  // Must reach at least 21
-  if (maxScore < 21) return false;
+  // Must reach at least 21 to win
+  if (max < 21) return false;
 
-  // If less than 29, must win by 2
-  if (maxScore <= 29) {
-    return maxScore - minScore >= 2;
+  // If max is exactly 21–29
+  if (max < 30) {
+    // Must win by at least 2
+    return diff >= 2;
   }
 
-  // If 30, special rule: 30-29 only
-  if (maxScore === 30) {
-    return minScore === 29;
+  // If max is 30 → ONLY valid is 30–29
+  if (max === 30) {
+    return min === 29;
   }
 
   return false;
 }
-
 
 /***********************
  * PLAYER HELPERS (ID based)
