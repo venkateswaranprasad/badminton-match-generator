@@ -708,3 +708,8 @@ button {
   padding: 6px 4px;
 }
 
+.round-header {
+  border-bottom: 2px solid rgba(0,0,0,0.08);
+  padding-bottom: 6px;
+}
+
