@@ -169,7 +169,10 @@ async function showGroupStatsOnHome(groupCode) {
       collection(db, "groups", groupCode, "tournaments")
     );
 
-    if (snap.empty) return;
+    if (snap.empty) {
+      document.getElementById("groupStatsHome").style.display = "none";
+      return;
+    }
 
     const aggregated = {};
 
@@ -187,7 +190,10 @@ async function showGroupStatsOnHome(groupCode) {
       });
     });
 
-    if (Object.keys(aggregated).length === 0) return;
+    if (Object.keys(aggregated).length === 0) {
+      document.getElementById("groupStatsHome").style.display = "none";
+      return;
+    }
 
     renderPlayerStatsIntoContainer(
       aggregated,
@@ -948,7 +954,26 @@ async function resumeTournament(tournamentId) {
  ***********************/
 async function checkGroupHistory() {
   const groupCode = getEnteredGroupCode();
+  // 🧹 HARD RESET transient state when switching group
+  currentTournamentId = null;
+  scheduledMatches = [];
+  availableTodayMap = {};
+  teamMap = {};
+  hasPlayStarted = false;
+  
+  // prevent stale UI bleed
+  document.getElementById("matchResults").innerHTML = "";
+  document.getElementById("playMatchesGrid").innerHTML = "";
+  document.getElementById("fairnessReport").innerHTML = "";
+  
   const msgEl = document.getElementById("historyMessage");
+
+  // 🧹 Reset previous group stats immediately
+  const homeStats = document.getElementById("groupStatsHome");
+  const homeStatsTable = document.getElementById("groupStatsHomeTable");
+  
+  if (homeStats) homeStats.style.display = "none";
+  if (homeStatsTable) homeStatsTable.innerHTML = "";
 
   if (!groupCode) {
     if (msgEl) msgEl.textContent = "Please enter a Group Code (example: BDM-482913).";
