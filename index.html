@@ -283,12 +283,17 @@
 <!-- ================= STEP 4 : PLAY ================= -->
 <section id="step4" class="step-card" style="display:none;">
   <h2 id="step4Title">Play</h2>
-  <div id="playMatchesGrid"></div>
-
-  <button onclick="goBack()">⬅️ Back</button>
-  <button onclick="concludePlay()">🏁 Conclude Play</button>
-
-  <section id="finalSummarySection" style="display:none;">
+  <!-- PLAY MODE -->
+  <div class="play-only">
+    <div id="playMatchesGrid"></div>
+  
+    <button onclick="goBack()">⬅️ Back</button>
+    <button onclick="concludePlay()">🏁 Conclude Play</button>
+  </div>
+  
+  <!-- VIEW MODE -->
+  <section id="finalSummarySection" class="view-only" style="display:none;">
+    
     <h2>Final Result</h2>
     <div id="finalHeader"></div>
 
@@ -301,8 +306,8 @@
     <h3>Player of the Tournament</h3>
     <div id="playerOfTournament"></div>
 
-    <button onclick="saveResults()">💾 Save Results</button>
-    <button onclick="resetAll()">🏠 Start New Tournament</button>
+    <button class="play-only" onclick="saveResults()">💾 Save Results</button>
+    <button class="play-only" onclick="resetAll()">🏠 Start New Tournament</button>
   </section>
 </section>
 
