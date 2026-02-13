@@ -59,7 +59,7 @@ function buildStatsTable(rows, containerId) {
       return asc ? a[key] - b[key] : b[key] - a[key];
     });
 
-    document.ElementById(containerId).innerHTML =
+    document.getElementById(containerId).innerHTML =
       buildStatsTable(rows, containerId);
   };
 
@@ -106,10 +106,10 @@ function buildGroupStatsShareText(stats = {}) {
 async function fetchTournamentsFromCloud(groupCode) {
   requireFirebaseReady();
   const db = window.firebaseDb;
-  const { collection, Docs } = window.fs;
+  const { collection, getDocs } = window.fs;
 
   const colRef = collection(db, "groups", groupCode, "tournaments");
-  const snap = await Docs(colRef);
+  const snap = await getDocs(colRef);
 
   const list = [];
   snap.forEach(docSnap => {
@@ -120,7 +120,7 @@ async function fetchTournamentsFromCloud(groupCode) {
 }
 
 function renderPlayerStatsFromCloud(playerStats = {}) {
-  const container = document.ElementById("playerStatsTable");
+  const container = document.getElementById("playerStatsTable");
   if (!container) return;
 
   if (!playerStats || Object.keys(playerStats).length === 0) {
@@ -162,10 +162,10 @@ async function showGroupStatsOnHome(groupCode) {
   try {
     requireFirebaseReady();
 
-    const { collection, Docs } = window.fs;
+    const { collection, getDocs } = window.fs;
     const db = window.firebaseDb;
 
-    const snap = await Docs(
+    const snap = await getDocs(
       collection(db, "groups", groupCode, "tournaments")
     );
 
@@ -194,7 +194,7 @@ async function showGroupStatsOnHome(groupCode) {
       "groupStatsHomeTable"
     );
 
-    document.ElementById("groupStatsHome").style.display = "block";
+    document.getElementById("groupStatsHome").style.display = "block";
   } catch (err) {
     console.error("❌ Failed to load group stats on home", err);
   }
@@ -207,7 +207,7 @@ async function openTournamentHistory() {
     const { collection, Docs, query, orderBy } = window.fs;
     const db = window.firebaseDb;
 
-    const listEl = document.ElementById("tournamentHistoryList");
+    const listEl = document.getElementById("tournamentHistoryList");
     listEl.innerHTML = "🔄 Loading tournaments...";
 
     const q = query(
@@ -215,7 +215,7 @@ async function openTournamentHistory() {
       orderBy("createdAt", "desc")
     );
 
-    const snap = await Docs(q);
+    const snap = await getDocs(q);
 
     if (snap.empty) {
       listEl.innerHTML = "<p>No tournaments found.</p>";
@@ -263,7 +263,7 @@ async function openTournamentHistory() {
 }
 
 function renderPlayerStatsIntoContainer(playerStats, containerId) {
-  const container = document.ElementById(containerId);
+  const container = document.getElementById(containerId);
   if (!container) return;
 
   // Build rows with derived win %
@@ -292,13 +292,13 @@ function renderPlayerStatsIntoContainer(playerStats, containerId) {
 
 function setStep4Mode(mode) {
   step4Mode = mode;
-  const titleEl = document.ElementById("step4Title");
+  const titleEl = document.getElementById("step4Title");
 
-  const playGrid = document.ElementById("playMatchesGrid");
+  const playGrid = document.getElementById("playMatchesGrid");
   const concludeBtn = document.querySelector(
     "#step4 button[onclick='concludePlay()']"
   );
-  const finalSection = document.ElementById("finalSummarySection");
+  const finalSection = document.getElementById("finalSummarySection");
 
   const saveResultsBtn = document.querySelector(
     "#finalSummarySection button[onclick='saveResults()']"
@@ -409,11 +409,11 @@ function showStep(stepNo) {
   currentStep = stepNo;
 
   for (let i = 1; i <= 5; i++) {
-    const el = document.ElementById(`step${i}`);
+    const el = document.getElementById(`step${i}`);
     if (el) el.style.display = i === stepNo ? "block" : "none";
   }
 
-  const stepText = document.ElementById("currentStepText");
+  const stepText = document.getElementById("currentStepText");
 
   if (stepText) {
     stepText.textContent = stepNo <= 4 ? stepNo : "History";
@@ -421,7 +421,7 @@ function showStep(stepNo) {
 
   // Stepper UI only highlights steps 1–4
   for (let i = 1; i <= 4; i++) {
-    const el = document.ElementById(`s${i}`);
+    const el = document.getElementById(`s${i}`);
     if (!el) continue;
 
     el.classList.remove("active");
@@ -482,11 +482,11 @@ function escapeHtml(text) {
     .replaceAll("'", "&#039;");
 }
 
-function TodayDateString() {
+function getTodayDateString() {
   const d = new Date();
-  const yyyy = d.FullYear();
-  const mm = String(d.Month() + 1).padStart(2, "0");
-  const dd = String(d.Date()).padStart(2, "0");
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
   return `${yyyy}-${mm}-${dd}`;
 }
 
