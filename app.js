@@ -614,6 +614,30 @@ async function shareGroupPlayerStats() {
   }
 }
 
+function isValidBadmintonScore(scoreA, scoreB) {
+  if (scoreA < 0 || scoreB < 0) return false;
+  if (scoreA > 30 || scoreB > 30) return false;
+  if (scoreA === scoreB) return false;
+
+  const maxScore = Math.max(scoreA, scoreB);
+  const minScore = Math.min(scoreA, scoreB);
+
+  // Must reach at least 21
+  if (maxScore < 21) return false;
+
+  // If less than 29, must win by 2
+  if (maxScore <= 29) {
+    return maxScore - minScore >= 2;
+  }
+
+  // If 30, special rule: 30-29 only
+  if (maxScore === 30) {
+    return minScore === 29;
+  }
+
+  return false;
+}
+
 
 /***********************
  * PLAYER HELPERS (ID based)
@@ -2061,8 +2085,14 @@ async function saveMatchResult(matchNo) {
     return;
   }
 
-  if (scoreA === scoreB) {
-    alert("Draw is not allowed.");
+  if (!isValidBadmintonScore(scoreA, scoreB)) {
+    alert(
+      "Invalid badminton score.\n\n" +
+      "Rules:\n" +
+      "- Game to 21 points\n" +
+      "- Win by 2\n" +
+      "- At 29-29, next point wins (30-29 max)"
+    );
     return;
   }
 
