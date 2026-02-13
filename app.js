@@ -888,6 +888,10 @@ async function showUpcomingTournamentsFromCloud() {
           ${
             t.status === "SCHEDULED"
               ? `<button onclick="resumeTournament('${tid}')">▶ Resume</button>
+                <button class="danger"
+                    onclick="deleteScheduledTournament('${tid}')">
+                  🗑 Delete
+                </button>
                  <span class="badge">⏸ Not Started</span>`
               : `<button onclick="resumeTournament('${tid}')">▶ Resume</button>
                  <span class="badge">▶ In Progress</span>`
@@ -906,6 +910,45 @@ if (shown === 0) {
     console.error(err);
     document.getElementById("upcomingList").innerHTML =
       "<p>❌ Error loading tournaments.</p>";
+  }
+}
+
+async function deleteScheduledTournament(tournamentId) {
+  try {
+    requireFirebaseReady();
+
+    const { deleteDoc, getDoc } = window.fs;
+    const ref = getTournamentRef(groupCodeActive, tournamentId);
+
+    const snap = await getDoc(ref);
+    if (!snap.exists()) {
+      alert("Tournament not found.");
+      return;
+    }
+
+    const data = snap.data();
+
+    // 🔒 Safety check
+    if (data.status !== "SCHEDULED") {
+      alert("Only scheduled tournaments can be deleted.");
+      return;
+    }
+
+    const ok = confirm(
+      "Delete this scheduled tournament?\nThis cannot be undone."
+    );
+    if (!ok) return;
+
+    await deleteDoc(ref);
+
+    alert("Tournament deleted.");
+
+    // refresh list
+    await showUpcomingTournamentsFromCloud();
+
+  } catch (err) {
+    console.error(err);
+    alert("Failed to delete tournament.");
   }
 }
 
@@ -2544,6 +2587,8 @@ window.viewCompletedTournament = viewCompletedTournament;
 window.shareGroupPlayerStats = shareGroupPlayerStats;
 window.shareGroupPlayerStats = shareGroupPlayerStats;
 window.openTournamentHistory = openTournamentHistory;
+window.deleteScheduledTournament = deleteScheduledTournament;
+
 
 window.startAddPlayer = startAddPlayer;
 window.cancelAddPlayer = cancelAddPlayer;
