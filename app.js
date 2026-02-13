@@ -357,6 +357,27 @@ function computePlayerOfTournament(matchResults = []) {
   return `${names.join(", ")} (${maxWins} wins)`;
 }
 
+function getPlayerOfTournamentIds(matchResults = []) {
+  const winCount = {};
+
+  matchResults.forEach(r => {
+    const winners =
+      r.winnerTeam === "A" ? r.teamAIds :
+      r.winnerTeam === "B" ? r.teamBIds :
+      [];
+
+    winners.forEach(pid => {
+      winCount[pid] = (winCount[pid] || 0) + 1;
+    });
+  });
+
+  if (Object.keys(winCount).length === 0) return [];
+
+  const maxWins = Math.max(...Object.values(winCount));
+  return Object.keys(winCount).filter(pid => winCount[pid] === maxWins);
+}
+
+
 /***********************
  * WIZARD STATE
  ***********************/
@@ -985,8 +1006,9 @@ async function viewCompletedTournament(tournamentId) {
     }
 
     // Render results & stats
-    // const potIds = getPlayerOfTournamentIds(data.matchResults || []);
-    // renderPlayerStatsFromCloud(data.playerStats || {}, potIds);
+    const potIds = getPlayerOfTournamentIds(data.matchResults || []);
+    renderPlayerStatsFromCloud(data.playerStats || {}, potIds);
+    
     renderCompletedMatchSummary(data.matchResults || []);
 
     const potText = computePlayerOfTournament(data.matchResults || []);
