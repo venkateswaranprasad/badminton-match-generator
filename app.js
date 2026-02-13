@@ -119,7 +119,7 @@ async function fetchTournamentsFromCloud(groupCode) {
   return list;
 }
 
-function renderPlayerStatsFromCloud(playerStats = {}, potIds = []) { {
+function renderPlayerStatsFromCloud(playerStats = {}, potIds = []) {
   const container = document.getElementById("playerStatsTable");
   if (!container) return;
 
