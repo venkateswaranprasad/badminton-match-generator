@@ -119,7 +119,7 @@ async function fetchTournamentsFromCloud(groupCode) {
   return list;
 }
 
-function renderPlayerStatsFromCloud(playerStats = {}) {
+function renderPlayerStatsFromCloud(playerStats = {}, potIds = []) { {
   const container = document.getElementById("playerStatsTable");
   if (!container) return;
 
@@ -130,8 +130,8 @@ function renderPlayerStatsFromCloud(playerStats = {}) {
 
   const rows = Object.entries(playerStats).map(([pid, stats]) => {
     const name = getPlayerNameById(pid);
-    const isPOT = potIds.includes(pid);
-  
+    const isPOT = Array.isArray(potIds) && potIds.includes(pid);
+    
     return `
       <tr>
         <td>
