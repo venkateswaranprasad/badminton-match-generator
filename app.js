@@ -964,6 +964,12 @@ async function resumeTournament(tournamentId) {
       return;
     }
     const data = snap.data();
+
+    // ✅ Restore courts dropdown
+    if (data.numberOfCourts) {
+      const courtsEl = document.getElementById("numberOfCourts");
+      if (courtsEl) courtsEl.value = data.numberOfCourts;
+    }
     
     // 🚫 Do not allow resume for completed tournaments
     if (data.status === "COMPLETED") {
@@ -974,6 +980,7 @@ async function resumeTournament(tournamentId) {
     currentTournamentId = tournamentId;
     
     hasPlayStarted = (data.matchResults || []).length > 0;
+    window._resumedCourts = data.numberOfCourts || 1;
     // ✅ Restore saved match results
     window._resumedMatchResults = data.matchResults || [];
 
@@ -1788,7 +1795,10 @@ function renderScheduleCardsFromIds() {
   if (!resultsDiv) return;
   resultsDiv.innerHTML = "";
 
-  const courts = getNumberOfCourts();
+  const courts =
+  (currentTournamentId &&
+   window._resumedCourts) ||
+  getNumberOfCourts();
   const rounds = groupMatchesIntoRounds(scheduledMatches, courts);
 
   rounds.forEach((round, roundIndex) => {
@@ -2020,6 +2030,7 @@ async function saveSchedule() {
     tournamentId,
     playDate,
     matchesPerPlayer: getMatchesPerPlayer(),
+    numberOfCourts: getNumberOfCourts(),
     availablePlayerIds: availablePlayers.map(p => p.id),
     teamAIds,
     teamBIds,
@@ -2062,24 +2073,25 @@ async function saveScheduleToCloud(tournament) {
     await setDoc(ref, {
       tournamentId: tournament.tournamentId,
       groupCode: groupCodeActive,
-
+    
       createdAt: new Date().toISOString(),
       cloudSavedAt: serverTimestamp(),
-
+    
       playDate: tournament.playDate,
       matchesPerPlayer: tournament.matchesPerPlayer,
-
+      numberOfCourts: tournament.numberOfCourts, // ✅ ADD
+    
       availablePlayerIds: tournament.availablePlayerIds,
       teamAIds: tournament.teamAIds,
       teamBIds: tournament.teamBIds,
-
+    
       scheduledMatches: tournament.scheduledMatches,
-
-      // 🔒 Lifecycle fields (NON-NEGOTIABLE)
+    
       status: "SCHEDULED",
       matchResults: [],
       playerStats: {}
     });
+
 
     console.log("☁️ Tournament initialized in cloud:", ref.path);
 
