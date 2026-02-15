@@ -1137,21 +1137,59 @@ async function viewCompletedTournament(tournamentId) {
       return;
     }
 
-    // Render results & stats
-    const potIds = getPlayerOfTournamentIds(data.matchResults || []);
+    const results = data.matchResults || [];
+
+    // ===== PLAYER STATS =====
+    const potIds = PlayerOfTournamentIds(results);
     renderPlayerStatsFromCloud(data.playerStats || {}, potIds);
-    
-    renderCompletedMatchSummary(data.matchResults || []);
 
-    const potText = computePlayerOfTournament(data.matchResults || []);
-    const potEl = document.getElementById("playerOfTournament");
-    if (potEl) {
-      potEl.innerHTML = `<strong>${potText}</strong>`;
-    }
+    // ===== MATCH SUMMARY =====
+    renderCompletedMatchSummary(results);
 
-    showStep(4); // reuse final summary UI
-    setStep4Mode("VIEW"); 
-    
+    // ===== PLAYER OF TOURNAMENT =====
+    const potText = computePlayerOfTournament(results);
+    document.getElementById("playerOfTournament").innerHTML =
+      `<strong>${potText}</strong>`;
+
+    // ===== OVERALL SUMMARY =====
+    let teamAWins = 0;
+    let teamBWins = 0;
+
+    results.forEach(r => {
+      if (r.winnerTeam === "A") teamAWins++;
+      if (r.winnerTeam === "B") teamBWins++;
+    });
+
+    let tournamentWinner = "Draw";
+    if (teamAWins > teamBWins) tournamentWinner = "Team A";
+    else if (teamBWins > teamAWins) tournamentWinner = "Team B";
+
+    document.getElementById("finalHeader").innerHTML =
+      `<strong>${tournamentWinner} won</strong>`;
+
+    document.getElementById("overallSummary").innerHTML = `
+      <table border="1" cellpadding="6">
+        <tr>
+          <th>Team A</th>
+          <th>Matches Won</th>
+          <th>Team B</th>
+          <th>Matches Won</th>
+        </tr>
+        <tr>
+          <td>Team A</td>
+          <td>${teamAWins}</td>
+          <td>Team B</td>
+          <td>${teamBWins}</td>
+        </tr>
+      </table>
+    `;
+
+    // ===== SHOW FINAL SECTION =====
+    document.getElementById("finalSummarySection").style.display = "block";
+
+    showStep(4);
+    setStep4Mode("VIEW");
+
   } catch (err) {
     console.error(err);
     alert("Failed to load tournament stats.");
