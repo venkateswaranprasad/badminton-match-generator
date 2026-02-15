@@ -2522,6 +2522,20 @@ async function concludeTournamentInCloud() {
   }
 }
 
+function copyTournamentLink() {
+  if (!groupCodeActive || !currentTournamentId) {
+    alert("Tournament not saved yet.");
+    return;
+  }
+
+  const url =
+    window.location.origin +
+    window.location.pathname +
+    `?group=${groupCodeActive}&tournament=${currentTournamentId}`;
+
+  navigator.clipboard.writeText(url);
+  alert("Tournament link copied 👍");
+}
 
 /***********************
  * RESET
@@ -2610,12 +2624,63 @@ async function testFirestoreWrite() {
 /***********************
  * INITIAL LOAD
  ***********************/
-window.addEventListener("load", () => {
+
+function getUrlParams() {
+  const params = new URLSearchParams(window.location.search);
+  return {
+    group: params.get("group"),
+    tournament: params.get("tournament")
+  };
+}
+
+
+window.addEventListener("load", async () => {
   const saved = localStorage.getItem("badmintonDarkMode");
   if (saved === "1") document.body.classList.add("dark");
 
   setGroupCodeUI({ showBox: false, codeText: "", enableGenerate: true });
   showStep(1);
+
+    const { group, tournament } = getUrlParams();
+
+    if (group && tournament) {
+      try {
+        // fetch group automatically
+        const cloudGroup = await fetchGroupFromCloud(group);
+  
+        if (!cloudGroup) return;
+  
+        groupCodeActive = group;
+        groupDisplayName = cloudGroup.groupName || "";
+        groupPlayers = cloudGroup.players || [];
+  
+        // restore maps
+        availableTodayMap = {};
+        teamMap = {};
+        groupPlayers.forEach(p => {
+          availableTodayMap[p.id] = true;
+          teamMap[p.id] = "";
+        });
+  
+        // try load tournament
+        const ref = getTournamentRef(group, tournament);
+        const snap = await window.fs.getDoc(ref);
+  
+        if (!snap.exists()) return;
+  
+        const data = snap.data();
+  
+        if (data.status === "COMPLETED") {
+          await viewCompletedTournament(tournament);
+        } else {
+          await resumeTournament(tournament);
+        }
+  
+      } catch (err) {
+        console.error("Deep link load failed", err);
+      }
+    }
+
 });
 
 /***********************
