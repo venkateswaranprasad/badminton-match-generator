@@ -1140,7 +1140,7 @@ async function viewCompletedTournament(tournamentId) {
     const results = data.matchResults || [];
 
     // ===== PLAYER STATS =====
-    const potIds = PlayerOfTournamentIds(results);
+    const potIds = getPlayerOfTournamentIds(results);
     renderPlayerStatsFromCloud(data.playerStats || {}, potIds);
 
     // ===== MATCH SUMMARY =====
