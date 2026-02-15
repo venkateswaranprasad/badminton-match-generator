@@ -2703,6 +2703,7 @@ window.shareGroupPlayerStats = shareGroupPlayerStats;
 window.shareGroupPlayerStats = shareGroupPlayerStats;
 window.openTournamentHistory = openTournamentHistory;
 window.deleteScheduledTournament = deleteScheduledTournament;
+window.copyTournamentLink = copyTournamentLink;
 
 
 window.startAddPlayer = startAddPlayer;
