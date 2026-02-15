@@ -9,6 +9,17 @@ function requireFirebaseReady() {
   }
 }
 
+function waitForFirebaseReady() {
+  return new Promise(resolve => {
+    const interval = setInterval(() => {
+      if (window.firebaseDb && window.firebaseAuth?.currentUser && window.fs) {
+        clearInterval(interval);
+        resolve();
+      }
+    }, 100);
+  });
+}
+
 function getTournamentRef(groupCode, tournamentId) {
   const db = window.firebaseDb;
   const { doc } = window.fs;
@@ -2641,46 +2652,56 @@ window.addEventListener("load", async () => {
   setGroupCodeUI({ showBox: false, codeText: "", enableGenerate: true });
   showStep(1);
 
-    const { group, tournament } = getUrlParams();
+  const { group, tournament } = getUrlParams();
 
-    if (group && tournament) {
-      try {
-        // fetch group automatically
-        const cloudGroup = await fetchGroupFromCloud(group);
+  if (group && tournament) {
+    console.log("🔗 Deep link detected", group, tournament);
   
-        if (!cloudGroup) return;
+    try {
+      // ✅ WAIT for Firebase
+      await waitForFirebaseReady();
   
-        groupCodeActive = group;
-        groupDisplayName = cloudGroup.groupName || "";
-        groupPlayers = cloudGroup.players || [];
+      const cloudGroup = await fetchGroupFromCloud(group);
   
-        // restore maps
-        availableTodayMap = {};
-        teamMap = {};
-        groupPlayers.forEach(p => {
-          availableTodayMap[p.id] = true;
-          teamMap[p.id] = "";
-        });
-  
-        // try load tournament
-        const ref = getTournamentRef(group, tournament);
-        const snap = await window.fs.getDoc(ref);
-  
-        if (!snap.exists()) return;
-  
-        const data = snap.data();
-  
-        if (data.status === "COMPLETED") {
-          await viewCompletedTournament(tournament);
-        } else {
-          await resumeTournament(tournament);
-        }
-  
-      } catch (err) {
-        console.error("Deep link load failed", err);
+      if (!cloudGroup) {
+        console.warn("Group not found");
+        return;
       }
+  
+      groupCodeActive = group;
+      groupDisplayName = cloudGroup.groupName || "";
+      groupPlayers = cloudGroup.players || [];
+  
+      document.getElementById("clubName").value = groupDisplayName;
+  
+      availableTodayMap = {};
+      teamMap = {};
+      groupPlayers.forEach(p => {
+        availableTodayMap[p.id] = true;
+        teamMap[p.id] = "";
+      });
+  
+      const ref = getTournamentRef(group, tournament);
+      const snap = await window.fs.getDoc(ref);
+  
+      if (!snap.exists()) {
+        console.warn("Tournament not found");
+        return;
+      }
+  
+      const data = snap.data();
+  
+      if (data.status === "COMPLETED") {
+        await viewCompletedTournament(tournament);
+      } else {
+        await resumeTournament(tournament);
+      }
+  
+    } catch (err) {
+      console.error("❌ Deep link load failed", err);
     }
-
+  }
+  
 });
 
 /***********************
