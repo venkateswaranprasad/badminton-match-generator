@@ -713,3 +713,256 @@ button {
   padding-bottom: 6px;
 }
 
+/* =========================
+   MOBILE RESPONSIVE PACK
+   ========================= */
+
+/* Ensure proper scaling */
+body {
+  margin: 0;
+  padding: 10px;
+}
+
+/* Center content on desktop but full width on mobile */
+.step-card {
+  max-width: 900px;
+  margin: auto;
+}
+
+/* ---------- STEP HEADER ---------- */
+
+@media (max-width: 768px) {
+
+  h1 {
+    font-size: 20px;
+    text-align: center;
+  }
+
+  h2 {
+    font-size: 18px;
+  }
+
+  h3 {
+    font-size: 16px;
+  }
+
+  .note {
+    font-size: 12px;
+  }
+
+}
+
+/* ---------- STEPPER ---------- */
+
+@media (max-width: 768px) {
+
+  .stepper {
+    transform: scale(0.9);
+  }
+
+  .stepper-label {
+    display: none;
+  }
+
+  #stepIndicator {
+    margin-bottom: 10px;
+  }
+
+}
+
+/* ---------- BUTTONS ---------- */
+
+button {
+  padding: 10px 14px;
+  font-size: 15px;
+  border-radius: 8px;
+}
+
+@media (max-width: 768px) {
+
+  button {
+    width: 100%;
+    margin-bottom: 8px;
+  }
+
+  .topbar button {
+    width: auto;
+  }
+
+}
+
+/* ---------- INPUTS ---------- */
+
+input,
+select {
+  padding: 8px;
+  font-size: 14px;
+}
+
+@media (max-width: 768px) {
+
+  input[type="text"],
+  input[type="number"],
+  input[type="date"],
+  select {
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+}
+
+/* ---------- TWO COLUMN → STACK ---------- */
+
+.two-col {
+  display: flex;
+  gap: 16px;
+}
+
+@media (max-width: 768px) {
+
+  .two-col {
+    flex-direction: column;
+  }
+
+}
+
+/* ---------- PANEL CARDS ---------- */
+
+.panel-card {
+  border-radius: 12px;
+  padding: 12px;
+}
+
+@media (max-width: 768px) {
+
+  .panel-card {
+    padding: 10px;
+  }
+
+}
+
+/* ---------- PLAYERS PANEL ---------- */
+
+@media (max-width: 768px) {
+
+  #playersPanel div {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+  }
+
+}
+
+/* ---------- TEAM ASSIGNMENT ---------- */
+
+@media (max-width: 768px) {
+
+  #teamAssignmentPanel div {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+  }
+
+  .sticky-counts {
+    font-size: 14px;
+  }
+
+}
+
+/* ---------- SCHEDULE CARDS ---------- */
+
+.schedule-card {
+  padding: 12px;
+  border-radius: 10px;
+}
+
+@media (max-width: 768px) {
+
+  .schedule-card {
+    font-size: 14px;
+  }
+
+}
+
+/* ---------- FAIRNESS REPORT ---------- */
+
+@media (max-width: 768px) {
+
+  #fairnessReport table {
+    font-size: 12px;
+  }
+
+}
+
+/* ---------- PLAY MATCH GRID ---------- */
+
+@media (max-width: 768px) {
+
+  #playMatchesGrid div {
+    padding: 10px;
+  }
+
+  #playMatchesGrid input {
+    width: 60px;
+  }
+
+}
+
+/* ---------- FINAL SUMMARY ---------- */
+
+@media (max-width: 768px) {
+
+  #finalSummarySection table {
+    font-size: 13px;
+  }
+
+}
+
+/* ---------- HISTORY LIST ---------- */
+
+@media (max-width: 768px) {
+
+  #tournamentHistoryList .schedule-card {
+    font-size: 14px;
+  }
+
+}
+
+/* ---------- HOME STATS ---------- */
+
+@media (max-width: 768px) {
+
+  #groupStatsHome table {
+    font-size: 13px;
+  }
+
+}
+
+/* ---------- SMALL SPACING FIX ---------- */
+
+@media (max-width: 768px) {
+
+  section {
+    padding: 8px;
+  }
+
+  hr {
+    margin: 10px 0;
+  }
+
+}
+
+/* ---------- TOUCH FRIENDLY ---------- */
+
+@media (max-width: 768px) {
+
+  label {
+    font-size: 14px;
+  }
+
+  .badge {
+    font-size: 12px;
+  }
+
+}
+
