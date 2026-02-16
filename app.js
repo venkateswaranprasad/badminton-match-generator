@@ -2651,6 +2651,7 @@ window.addEventListener("load", async () => {
 
   setGroupCodeUI({ showBox: false, codeText: "", enableGenerate: true });
   showStep(1);
+  showOpenInAppBanner();
 
   const { group, tournament } = getUrlParams();
 
@@ -2712,6 +2713,38 @@ if ("serviceWorker" in navigator) {
       .catch(err => console.error("❌ SW registration failed", err));
   });
 }
+
+function showOpenInAppBanner() {
+  const isStandalone =
+    window.matchMedia("(display-mode: standalone)").matches ||
+    window.navigator.standalone === true;
+
+  if (!isStandalone) {
+    const banner = document.createElement("div");
+    banner.innerHTML = `
+      <div id="pwaBanner" style="
+        position:fixed;
+        bottom:0;
+        left:0;
+        right:0;
+        background:#4a90e2;
+        color:white;
+        padding:12px;
+        text-align:center;
+        z-index:9999;
+        font-weight:bold;
+      ">
+        📱 Open from Home Screen for best experience
+      </div>
+    `;
+    document.body.appendChild(banner);
+
+    setTimeout(() => {
+      document.getElementById("pwaBanner")?.remove();
+    }, 6000);
+  }
+}
+
 
 /***********************
  * EXPOSE FUNCTIONS for onclick
