@@ -709,12 +709,12 @@ function toggleStep4ModeElements(mode) {
 
   document.querySelectorAll(".play-only")
     .forEach(el => {
-      el.style.display = mode === "PLAY" ? "" : "none";
+      el.style.display = mode === "PLAY" ? "block" : "none";
     });
 
   document.querySelectorAll(".view-only")
     .forEach(el => {
-      el.style.display = mode === "VIEW" ? "" : "none";
+      el.style.display = mode === "VIEW" ? "block" : "none";
     });
 }
 
