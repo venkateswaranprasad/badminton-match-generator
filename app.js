@@ -311,20 +311,28 @@ function setStep4Mode(mode) {
   step4Mode = mode;
 
   const titleEl = document.getElementById("step4Title");
-
   if (titleEl) {
     titleEl.textContent =
       mode === "PLAY" ? "Play" : "Tournament Stats";
   }
 
-  toggleStep4ModeElements(mode);
-
-  // VIEW mode should show final summary
+  const liveScore = document.getElementById("liveTeamScore");
   const finalSection = document.getElementById("finalSummarySection");
-  if (finalSection) {
-    finalSection.style.display =
-      mode === "VIEW" ? "block" : "none";
+
+  if (mode === "VIEW") {
+    liveScore?.classList.add("hidden");
+    finalSection && (finalSection.style.display = "block");
+  } else {
+    liveScore?.classList.remove("hidden");
+    finalSection && (finalSection.style.display = "none");
+
+    // ⭐ Ensure score refresh when switching back to PLAY
+    if (typeof window._resumedMatchResults !== "undefined") {
+      updateLiveTeamScore(window._resumedMatchResults);
+    }
   }
+
+  toggleStep4ModeElements(mode);
 }
 
 function computePlayerOfTournament(matchResults = []) {
@@ -374,6 +382,30 @@ function getPlayerOfTournamentIds(matchResults = []) {
   return Object.keys(winCount).filter(pid => winCount[pid] === maxWins);
 }
 
+function updateLiveTeamScore(matchResults = []) {
+  let teamAWins = 0;
+  let teamBWins = 0;
+
+  matchResults.forEach(r => {
+    if (r.winnerTeam === "A") teamAWins++;
+    if (r.winnerTeam === "B") teamBWins++;
+  });
+
+  const scoreEl = document.getElementById("liveTeamScore");
+  if (!scoreEl) return;
+
+  scoreEl.innerHTML =
+    `🏸 Team A: ${teamAWins} wins &nbsp;&nbsp; | &nbsp;&nbsp; 🏸 Team B: ${teamBWins} wins`;
+
+  // Optional visual highlight
+  if (teamAWins > teamBWins) {
+    scoreEl.style.background = "#e6f4ea";
+  } else if (teamBWins > teamAWins) {
+    scoreEl.style.background = "#fdecea";
+  } else {
+    scoreEl.style.background = "#f0f7ff";
+  }
+}
 
 /***********************
  * WIZARD STATE
@@ -994,7 +1026,8 @@ async function resumeTournament(tournamentId) {
     window._resumedCourts = data.numberOfCourts || 1;
     // ✅ Restore saved match results
     window._resumedMatchResults = data.matchResults || [];
-
+    updateLiveTeamScore(window._resumedMatchResults);
+    
     const homeBtn = document.getElementById("homeBtnStep4");
     if (homeBtn) homeBtn.disabled = true;
 
@@ -2299,6 +2332,7 @@ async function saveMatchResult(matchNo) {
   await saveMatchResultToCloud(resultObj);  
   msgEl.textContent = `Saved (Updated) ✅ Team ${winnerTeam} won`;
   msgEl.style.fontWeight = "bold";
+  updateLiveTeamScore(window._resumedMatchResults || []);
 }
 
 
