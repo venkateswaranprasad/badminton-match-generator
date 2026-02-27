@@ -2325,6 +2325,18 @@ async function saveMatchResult(matchNo) {
     savedAt: new Date().toISOString()
   };
 
+  // Ensure local results array exists
+  if (!window._resumedMatchResults) {
+    window._resumedMatchResults = [];
+  }
+  
+  // Deduplicate locally
+  window._resumedMatchResults =
+    window._resumedMatchResults.filter(r => r.matchNo !== matchNo);
+  
+  // Add updated result
+  window._resumedMatchResults.push(resultObj);
+  
   const msgEl = document.getElementById(`saveMsg${matchNo}`);
   msgEl.textContent = "Saving…";
 
