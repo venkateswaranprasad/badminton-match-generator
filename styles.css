@@ -360,8 +360,17 @@ input[type="radio"] {
     width: 100% !important;
   }
 
-  /* Buttons full width for easier tapping */
-  button {
+  /* Buttons full width for easier tapping —
+     but NOT the Save button inside a play score row,
+     and NOT the topbar dark-mode toggle */
+  .step-card > button,
+  .step-card > div > button,
+  .panel-actions button,
+  #step1 button,
+  #step3 button,
+  #step4 > button,
+  #step4 .play-only > button,
+  #step5 button {
     width: 100%;
     margin-right: 0;
   }
@@ -370,9 +379,7 @@ input[type="radio"] {
   .stepper-line {
     width: 30px;
   }
-}
 
-@media (max-width: 800px) {
   table {
     display: block;
     overflow-x: auto;
@@ -446,7 +453,16 @@ input[type="radio"] {
     grid-template-columns: 1fr;
   }
 
-  button {
+  /* Scope full-width to navigation/action buttons only —
+     excludes inline Save buttons inside score rows */
+  .step-card > button,
+  .step-card > div > button,
+  .panel-actions button,
+  #step1 button,
+  #step3 button,
+  #step4 > button,
+  #step4 .play-only > button,
+  #step5 button {
     width: 100%;
   }
 
@@ -470,6 +486,14 @@ input[type="radio"] {
 
 .topbar button {
   width: auto;
+}
+
+/* Utility: opt any button out of the mobile full-width rule.
+   Apply class="btn-inline" to buttons sitting inside flex score rows
+   or anywhere a full-width button would break the layout. */
+.btn-inline {
+  width: auto !important;
+  margin-bottom: 0 !important;
 }
 
 .schedule-grid {
@@ -780,9 +804,25 @@ button {
 
 @media (max-width: 768px) {
 
-  button {
+  /* Scope full-width to navigation/action buttons only.
+     Inline score-entry Save buttons (inside a flex row in #playMatchesGrid)
+     keep width:auto so they don't break the score row layout. */
+  .step-card > button,
+  .step-card > div > button,
+  .panel-actions button,
+  #step1 button,
+  #step3 button,
+  #step4 > button,
+  #step4 .play-only > button,
+  #step5 button {
     width: 100%;
     margin-bottom: 8px;
+  }
+
+  /* Score-row Save buttons stay compact */
+  #playMatchesGrid button {
+    width: auto;
+    margin-bottom: 0;
   }
 
   .topbar button {
