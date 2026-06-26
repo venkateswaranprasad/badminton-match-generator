@@ -10,13 +10,21 @@ function requireFirebaseReady() {
 }
 
 function waitForFirebaseReady() {
-  return new Promise(resolve => {
+  return new Promise((resolve, reject) => {
     const interval = setInterval(() => {
       if (window.firebaseDb && window.firebaseAuth?.currentUser && window.fs) {
         clearInterval(interval);
+        clearTimeout(timeout);
         resolve();
       }
     }, 100);
+
+    const timeout = setTimeout(() => {
+      clearInterval(interval);
+      reject(new Error(
+        "Cannot connect to the server. Please check your internet connection and refresh the page."
+      ));
+    }, 10000);
   });
 }
 
@@ -802,6 +810,13 @@ async function savePlayersToCloud(groupCode, players) {
   );
 }
 
+function showTournamentStats() {
+  const tournamentView = document.getElementById("tournamentStatsView");
+  const playerView = document.getElementById("playerStatsView");
+  if (tournamentView) tournamentView.style.display = "block";
+  if (playerView) playerView.style.display = "none";
+}
+
 async function showPlayerStats() {
   try {
     requireFirebaseReady();
@@ -1085,12 +1100,8 @@ async function checkGroupHistory() {
       if (historyBtn) historyBtn.style.display = "none";
       document.getElementById("historySection").style.display = "none";
       document.getElementById("upcomingSection").style.display = "none";
-      // ✅ If group has NO players yet → show player count setup
-      if (!cloudGroup.players || cloudGroup.players.length === 0) {
-        document.getElementById("newGroupSetup").style.display = "block";
-      } else {
-        document.getElementById("newGroupSetup").style.display = "none";
-      }
+      // Group does not exist — show the new-group player count input
+      document.getElementById("newGroupSetup").style.display = "block";
       setGroupCodeUI({ showBox: false, codeText: "", enableGenerate: true });
       return;
     }
@@ -1144,7 +1155,24 @@ async function generateGroupCode() {
   }
 
   try {
-    const code = makeGroupCode();
+    // Retry until we find a code that doesn't already exist in Firestore
+    let code;
+    let attempts = 0;
+    while (attempts < 5) {
+      const candidate = makeGroupCode();
+      const existing = await fetchGroupFromCloud(candidate);
+      if (!existing) {
+        code = candidate;
+        break;
+      }
+      attempts++;
+    }
+
+    if (!code) {
+      alert("❌ Could not generate a unique Group Code. Please try again.");
+      return;
+    }
+
     await createGroupInCloud(code, displayName);
 
     // set state
@@ -1299,12 +1327,6 @@ async function goNextFromSetup() {
 
   groupKey = normalizeGroupName(groupDisplayName);
 
-  const matchesPerPlayer = getMatchesPerPlayer();
-  if (!matchesPerPlayer || matchesPerPlayer < 1) {
-    alert("Please enter a valid Matches per Player value.");
-    return;
-  }
-
   // If no players yet (new group), create placeholders using playerCount
   if (!groupPlayers || groupPlayers.length === 0) {
     const count = Number(document.getElementById("playerCount").value);
@@ -1342,6 +1364,12 @@ async function goNextFromSetup() {
       availableTodayMap[p.id] = true;
       teamMap[p.id] = "";
     });
+  }
+
+  const matchesPerPlayer = getMatchesPerPlayer();
+  if (!matchesPerPlayer || matchesPerPlayer < 1) {
+    alert("Please enter a valid Matches per Player value (minimum 1).");
+    return;
   }
 
   manageMode = false;
@@ -2241,9 +2269,9 @@ function letsPlay() {
 
         <div style="margin-top:10px; display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
           <label>Score A:</label>
-          <input type="number" id="scoreA${match.matchNo}" min="0" style="width:70px;">
+          <input type="number" id="scoreA${match.matchNo}" min="0" max="30" step="1" style="width:70px;">
           <label>Score B:</label>
-          <input type="number" id="scoreB${match.matchNo}" min="0" style="width:70px;">
+          <input type="number" id="scoreB${match.matchNo}" min="0" max="30" step="1" style="width:70px;">
           <button onclick="window.saveMatchResult(${match.matchNo})">Save</button>
           <span id="saveMsg${match.matchNo}" style="margin-left:6px;"></span>
         </div>
@@ -2340,10 +2368,16 @@ async function saveMatchResult(matchNo) {
   const msgEl = document.getElementById(`saveMsg${matchNo}`);
   msgEl.textContent = "Saving…";
 
-  // ✅ WAIT for cloud save
-  await saveMatchResultToCloud(resultObj);  
-  msgEl.textContent = `Saved (Updated) ✅ Team ${winnerTeam} won`;
-  msgEl.style.fontWeight = "bold";
+  try {
+    await saveMatchResultToCloud(resultObj);
+    msgEl.textContent = `Saved (Updated) ✅ Team ${winnerTeam} won`;
+    msgEl.style.fontWeight = "bold";
+    msgEl.style.color = "";
+  } catch (err) {
+    msgEl.textContent = "❌ Save failed — check connection and try again.";
+    msgEl.style.color = "red";
+  }
+
   updateLiveTeamScore(window._resumedMatchResults || []);
 }
 
@@ -2383,6 +2417,8 @@ async function saveMatchResultToCloud(result) {
 
   } catch (err) {
     console.error("❌ Failed to save match result", err);
+    // Surface the failure — caller should update its msgEl after this throws
+    throw err;
   }
 }
 
@@ -2431,7 +2467,15 @@ async function concludePlay() {
       return;
     }
 
-    // 🏅 Compute Player of the Tournament (runtime)
+    const totalMatches = scheduledMatches.length;
+    const savedMatches = (data.matchResults || []).length;
+
+    if (savedMatches < totalMatches) {
+      alert(`Please save all match scores (${savedMatches}/${totalMatches}).`);
+      return;
+    }
+
+    // 🏅 Compute Player of the Tournament (runtime) — only after all scores saved
     const playerWinCount = {};
     
     groupResults.forEach(r => {
@@ -2459,14 +2503,6 @@ async function concludePlay() {
     
     document.getElementById("playerOfTournament").innerHTML =
       `<strong>${playerOfTournamentText}</strong>`;
-
-    const totalMatches = scheduledMatches.length;
-    const savedMatches = (data.matchResults || []).length;
-
-    if (savedMatches < totalMatches) {
-      alert(`Please save all match scores (${savedMatches}/${totalMatches}).`);
-      return;
-    }
 
     let teamAWins = 0;
     let teamBWins = 0;
@@ -2541,19 +2577,20 @@ async function concludePlay() {
 
 
 async function saveResults() {
-  alert("✅ Results saved locally. Syncing to cloud…");
-
-  await concludeTournamentInCloud(); // ✅ WAIT for cloud update
-  // ✅ Tournament completed → allow Home
-  currentTournamentId = null;
-  hasPlayStarted = false;
-  document.getElementById("playerStatsView").style.display = "block";
-  document.getElementById("tournamentStatsView").style.display = "none";
-
-  // Refresh home so completed status is reflected
-  showStep(1);
-  await checkGroupHistory();
-  resetAll();
+  try {
+    await concludeTournamentInCloud();
+    alert("✅ Results saved to cloud.");
+    currentTournamentId = null;
+    hasPlayStarted = false;
+    document.getElementById("playerStatsView").style.display = "block";
+    document.getElementById("tournamentStatsView").style.display = "none";
+    showStep(1);
+    await checkGroupHistory();
+    resetAll();
+  } catch (err) {
+    console.error("❌ saveResults failed", err);
+    alert("❌ Failed to save results to cloud. Please check your connection and try again.");
+  }
 }
 
 async function concludeTournamentInCloud() {
@@ -2576,6 +2613,7 @@ async function concludeTournamentInCloud() {
     console.log("🏁 Tournament concluded in cloud");
   } catch (err) {
     console.error("❌ Failed to conclude tournament", err);
+    throw err;
   }
 }
 
