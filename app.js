@@ -1048,6 +1048,9 @@ async function resumeTournament(tournamentId) {
 
     document.getElementById("playDate").value = data.playDate;
 
+    // Restore and display the saved team composition when resuming a schedule.
+    renderTeamSummary(data.teamAIds || [], data.teamBIds || []);
+
     renderScheduleCardsFromIds();
     showStep(3);
 
@@ -1746,6 +1749,9 @@ async function goNextFromPlayersTeams() {
 
   scheduleMatchesSmart(teamA, teamB, totalMatchesNeeded);
 
+  // Show the team composition at the top of the generated Schedule page.
+  renderTeamSummary(teamA.map(p => p.id), teamB.map(p => p.id));
+
   const pd = document.getElementById("playDate");
   if (pd && !pd.value) pd.value = getTodayDateString();
 
@@ -1895,6 +1901,52 @@ function scheduleMatchesSmart(teamAPlayers, teamBPlayers, matchCount) {
 
   renderScheduleCardsFromIds();
   renderFairnessReport();
+}
+
+/***********************
+ * STEP 3: RENDER TEAM SUMMARY
+ ***********************/
+function renderTeamSummary(teamAIds = [], teamBIds = []) {
+  const container = document.getElementById("teamSummary");
+  if (!container) return;
+
+  const getNames = ids => ids
+    .map(id => getPlayerNameById(id))
+    .filter(Boolean);
+
+  const teamA = getNames(teamAIds);
+  const teamB = getNames(teamBIds);
+
+  if (teamA.length === 0 && teamB.length === 0) {
+    container.innerHTML = "";
+    return;
+  }
+
+  const memberList = names => names
+    .map(name => escapeHtml(name))
+    .join("<br>");
+
+  container.innerHTML = `
+    <h3 style="margin: 10px 0 8px 0;">👥 Teams</h3>
+    <table>
+      <thead>
+        <tr>
+          <th style="width: 24%;">Team</th>
+          <th>Team Members</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="team-name"><span class="badge badge-a">A</span> Team A (${teamA.length})</td>
+          <td class="team-members">${memberList(teamA) || "No players"}</td>
+        </tr>
+        <tr>
+          <td class="team-name"><span class="badge badge-b">B</span> Team B (${teamB.length})</td>
+          <td class="team-members">${memberList(teamB) || "No players"}</td>
+        </tr>
+      </tbody>
+    </table>
+  `;
 }
 
 /***********************
