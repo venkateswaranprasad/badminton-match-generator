@@ -1006,3 +1006,52 @@ select {
 
 }
 
+
+/* ===== STEP 3 : TEAM SUMMARY ===== */
+.team-summary {
+  margin: 10px 0 18px 0;
+  overflow-x: auto;
+}
+
+.team-summary table {
+  width: 100%;
+  border-collapse: collapse;
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.team-summary th,
+.team-summary td {
+  padding: 11px 13px;
+  border-bottom: 1px solid #eee;
+  text-align: left;
+  vertical-align: top;
+}
+
+.team-summary th {
+  background: #f7f9fc;
+  font-size: 13px;
+}
+
+.team-summary tr:last-child td {
+  border-bottom: none;
+}
+
+.team-summary .team-name {
+  font-weight: bold;
+  white-space: nowrap;
+}
+
+.team-summary .team-members {
+  line-height: 1.6;
+}
+
+@media (max-width: 600px) {
+  .team-summary th,
+  .team-summary td {
+    padding: 9px 10px;
+    font-size: 13px;
+  }
+}
